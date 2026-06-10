@@ -1,0 +1,157 @@
+# generated: 2026-06-08
+# last_updated: 2026-06-08T07:09:16Z
+# project: STOCKS-AND-SHARES-ADVISOR-APP
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: /Users/gurmeetsingh/Documents/STOCKS-AND-SHARES-ADVISOR-APP/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-06-08
+last_updated: 2026-06-08T07:09:16Z
+project: STOCKS-AND-SHARES-ADVISOR-APP
+project_key: NOKEY
+tracking_system: file-system
+story_location: /Users/gurmeetsingh/Documents/STOCKS-AND-SHARES-ADVISOR-APP/_bmad-output/implementation-artifacts
+
+development_status:
+   # ── Epic 1: Foundation & Infrastructure ──────────────────────────────────
+   epic-1: done
+   1-1-scaffold-vite-project-and-install-dependencies: done
+   1-2-configure-tailwind-css-4-with-brand-design-tokens: done
+   1-3-implement-dexie-database-with-schema-definitions-and-migrations: done
+   1-4-implement-quoteservice-wrapping-nse-bse-api: done
+   1-5-implement-screenerservice-for-fundamental-data-scraping: done
+   1-6-implement-pure-scoring-engine-module: done
+   1-7-implement-stockservice-composite-data-service: done
+   1-8-implement-app-shell-layout: done
+   1-9-implement-shared-ui-components: done
+   1-10-implement-zustand-stores: done
+   1-11-configure-nginx-for-production: done
+   1-12-implement-syncservice-for-background-data-refresh: done
+   1-13-implement-nse-bse-api-stock-listing-for-seed-data: done
+   1-14-implement-routing-with-tanstack-router: done
+   epic-1-retrospective: optional
+
+   # ── Epic 2: Stock Browser & Discovery ────────────────────────────────────
+   epic-2: done
+   2-1-implement-stock-search-by-name-and-ticker: done
+   2-2-implement-stock-filters: done
+   2-3-implement-paginated-stock-list-with-sortable-columns: done
+   2-4-implement-screeners-in-fundamental-fetch-trigger-from-browser: done
+   2-5-implement-price-auto-fetch-on-stock-view: done
+   2-6-implement-keyboard-navigation-and-accessibility-for-browser: done
+   epic-2-retrospective: optional
+
+   # ── Epic 3: Scorecard & Stock Evaluation ─────────────────────────────────
+   epic-3: done
+   3-1-implement-stock-detail-page-with-scorecard-display: done
+   3-2-implement-parameter-interplay-warnings: done
+   3-3-implement-weight-customization-ui: done
+   3-4-implement-score-history-tracking: done
+   3-5-implement-price-chart-on-stock-detail: done
+   epic-3-retrospective: optional
+
+   # ── Epic 4: Compare & 8-Step Framework ───────────────────────────────────
+   epic-4: done
+   4-1-implement-compare-tray-and-stock-selection: done
+   4-2-implement-parameter-comparison-table: done
+   4-3-implement-visual-comparison-charts: done
+   4-4-implement-8-step-guided-framework: done
+   4-5-implement-framework-summary-with-export: done
+   4-6-implement-framework-auto-populate-from-scorecard: done
+   epic-4-retrospective: optional
+
+   # ── Epic 5: Dashboard ────────────────────────────────────────────────────
+   epic-5: done
+   5-1-implement-market-summary-section: done
+   5-2-implement-portfolio-snapshot-section: done
+   5-3-implement-active-alerts-section: done
+   5-4-implement-quick-actions-bar: done
+   epic-5-retrospective: optional
+
+   # ── Epic 6: Portfolio Management ─────────────────────────────────────────
+   epic-6: done
+   6-1-implement-add-stock-holding-form: done
+   6-2-implement-transaction-recording: done
+   6-3-implement-portfolio-holdings-list: done
+   6-4-implement-portfolio-allocation-visualizations: done
+   6-5-implement-sector-overlap-analysis: done
+   epic-6-retrospective: optional
+
+   # ── Epic 7: Goals & SIP Calculator ───────────────────────────────────────
+   epic-7: done
+   7-1-implement-goal-creation: done
+   7-2-implement-goal-detail-page: done
+   7-3-implement-goal-projection-calculator: done
+   7-4-implement-goal-to-transaction-linking: done
+   7-5-implement-sip-calculator: done
+   epic-7-retrospective: optional
+
+   # ── Epic 8: Portfolio Reviews & Drift ────────────────────────────────────
+   epic-8: done
+   8-1-implement-review-checklist-with-guided-steps: done
+   8-2-implement-drift-analysis-computation: done
+   8-3-implement-category-exposure-check: done
+   8-4-implement-stock-role-fit-assessment: done
+   8-5-implement-benchmark-comparison: done
+   8-6-implement-review-alerts-and-standalone-drift-calculator: done
+   epic-8-retrospective: optional
+
+   # ── Epic 9: Investment Journal ───────────────────────────────────────────
+   epic-9: done
+   9-1-implement-journal-entry-creation: done
+   9-2-implement-journal-timeline: done
+   9-3-implement-journal-filtering-and-search: done
+   epic-9-retrospective: optional
+
+   # ── Epic 10: Risk Profiling ──────────────────────────────────────────────
+   epic-10: done
+   10-1-implement-risk-questionnaire-flow: done
+   10-2-implement-risk-profile-result-and-storage: done
+   10-3-implement-first-run-redirect-to-risk-profiling: done
+   epic-10-retrospective: optional
+
+   # ── Epic 11: Glossary & XIRR Calculator ──────────────────────────────────
+   epic-11: done
+   11-1-implement-glossary-browser-with-37-plus-pre-seeded-terms: done
+   11-2-implement-in-context-terminfo-tooltips: done
+   11-3-implement-xirr-calculator: done
+   11-4-implement-xirr-result-visualization: done
+   epic-11-retrospective: optional
+
+   # ── Epic 12: Settings & Data Management ──────────────────────────────────
+   epic-12: done
+   12-1-implement-review-frequency-configuration: done
+   12-2-implement-data-export: done
+   12-3-implement-data-import: done
+   12-4-implement-theme-toggle: done
+   12-5-implement-weight-defaults-configuration: done
+   epic-12-retrospective: optional

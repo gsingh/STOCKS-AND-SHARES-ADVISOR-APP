@@ -1,0 +1,105 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@theme {
+  --color-primary: #1B3A5C;
+  --color-primary-foreground: #FFFFFF;
+  --color-accent: #1E7A45;
+  --color-accent-foreground: #FFFFFF;
+  --color-sidebar-bg: #1B3A5C;
+  --color-sidebar-fg: #FFFFFF;
+  --color-sidebar-active: #1E7A45;
+  --color-score-green: #15803D;
+  --color-score-green-bg: #F0FDF4;
+  --color-score-amber: #B45309;
+  --color-score-amber-bg: #FFFBEB;
+  --color-score-orange: #C2410C;
+  --color-score-orange-bg: #FFF7ED;
+  --color-score-red: #B91C1C;
+  --color-score-red-bg: #FEF2F2;
+  --color-chart-1: #2E8B57;
+  --color-chart-2: #2563EB;
+  --color-chart-3: #D97706;
+  --color-chart-4: #DC2626;
+  --color-freshness-green: #22C55E;
+  --color-freshness-yellow: #EAB308;
+  --color-freshness-red: #EF4444;
+  --color-freshness-gray: #9CA3AF;
+  --font-family-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+:root {
+  --primary: #1B3A5C;
+  --primary-foreground: #FFFFFF;
+  --accent: #1E7A45;
+  --accent-foreground: #FFFFFF;
+  --warning: #F59E0B;
+  --warning-foreground: #1A1208;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --sidebar-bg: #1B3A5C;
+  --sidebar-fg: #FFFFFF;
+  --sidebar-active: #1E7A45;
+  --score-green: #15803D;
+  --score-amber: #B45309;
+  --score-orange: #C2410C;
+  --score-red: #B91C1C;
+  --chart-color-1: #2E8B57;
+  --chart-color-2: #2563EB;
+  --chart-color-3: #D97706;
+  --chart-color-4: #DC2626;
+  --freshness-dot-green: #22C55E;
+  --freshness-dot-yellow: #EAB308;
+  --freshness-dot-red: #EF4444;
+  --freshness-dot-gray: #9CA3AF;
+
+  --background: #FFFFFF;
+  --foreground: #0A1A2A;
+  --card: #FFFFFF;
+  --card-foreground: #0A1A2A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A1A2A;
+  --muted: #F5F7FA;
+  --muted-foreground: #6B7280;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #1B3A5C;
+  --radius: 0.375rem;
+}
+
+.dark {
+  --primary: #5A8FC5;
+  --primary-foreground: #0A1A2A;
+  --accent: #5DAE7D;
+  --accent-foreground: #0A1A2A;
+  --sidebar-bg: #0F1F30;
+  --sidebar-fg: #FFFFFF;
+  --sidebar-active: #1E7A45;
+  --background: #0F1F30;
+  --foreground: #F0F4F8;
+  --card: #1A2A3A;
+  --card-foreground: #F0F4F8;
+  --popover: #1A2A3A;
+  --popover-foreground: #F0F4F8;
+  --muted: #1A2A3A;
+  --muted-foreground: #9CA3AF;
+  --border: #2A3A4A;
+  --input: #2A3A4A;
+  --ring: #5A8FC5;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.tabular-nums {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
