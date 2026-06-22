@@ -28,7 +28,67 @@ const YAHOO_HEADERS = {
 
 let crumbStore = null // { crumb, cookies, expiresAt }
 let nseSymbolsCache = null // { data, expiresAt }
-const stats = { 429: 0, 401: 0, other: 0, total: 0, bySymbol: {} }
+const stats = { 429: 0, 401: 0, other: 0, total: 0, bySymbol: {}, recent429Timestamps: [], recent429s: 0 }
+
+// ─── Rate Limiter ──────────────────────────────────────────────────
+// Token bucket: max 3 requests/sec to Yahoo to avoid 429s
+class RateLimiter {
+  constructor(maxPerSec = 3) {
+    this.maxPerSec = maxPerSec
+    this.tokens = maxPerSec
+    this.lastRefill = Date.now()
+  }
+
+  async wait() {
+    const now = Date.now()
+    const elapsed = (now - this.lastRefill) / 1000
+    this.lastRefill = now
+    this.tokens = Math.min(this.maxPerSec, this.tokens + elapsed * this.maxPerSec)
+
+    if (this.tokens >= 1) {
+      this.tokens -= 1
+      return
+    }
+
+    const waitMs = ((1 - this.tokens) / this.maxPerSec) * 1000
+    console.warn(`[Proxy] Rate limiter: waiting ${Math.round(waitMs)}ms before next request`)
+    await new Promise((r) => setTimeout(r, waitMs))
+    this.tokens = 0
+  }
+}
+
+// Global cooldown: when set, all requests wait before proceeding
+let cooldownUntil = 0
+
+async function checkpointCooldown() {
+  const remaining = cooldownUntil - Date.now()
+  if (remaining > 0) {
+    console.warn(`[Proxy] Cooldown active, pausing ${Math.round(remaining)}ms`)
+    await new Promise((r) => setTimeout(r, remaining))
+  }
+}
+
+function trigger429Cooldown() {
+  const recent429s = stats.recent429s || 0
+  let delay
+  if (recent429s < 3) delay = 3000
+  else if (recent429s < 6) delay = 6000
+  else if (recent429s < 10) delay = 15000
+  else delay = 30000
+  cooldownUntil = Date.now() + delay
+  console.warn(`[Proxy] ⚠️  429 received! Cooldown for ${delay}ms (${recent429s} recent 429s)`)
+}
+
+function record429() {
+  const now = Date.now()
+  stats.recent429Timestamps.push(now)
+  stats.recent429Timestamps = stats.recent429Timestamps.filter((t) => now - t < 60000)
+  stats.recent429s = stats.recent429Timestamps.length
+}
+
+const rateLimiter = new RateLimiter(3)
+
+// ─── End Rate Limiter ──────────────────────────────────────────────
 
 function getSetCookie(response) {
   if (typeof response.headers.getSetCookie === 'function') {
@@ -194,8 +254,11 @@ async function proxyQuoteSummary(symbol, modules) {
     `${encodeURIComponent(symbol)}?modules=${encodeURIComponent(modules)}` +
     `&crumb=${encodeURIComponent(crumb)}`
 
-  const maxRetries = 2
+  const maxRetries = 3
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await checkpointCooldown()
+    await rateLimiter.wait()
+
     const res = await fetch(targetUrl, {
       headers: {
         ...YAHOO_HEADERS,
@@ -213,9 +276,12 @@ async function proxyQuoteSummary(symbol, modules) {
     if (res.status === 429) {
       stats[429]++
       stats.bySymbol[symbol] = (stats.bySymbol[symbol] || 0) + 1
+      record429()
+      trigger429Cooldown()
       if (attempt < maxRetries) {
-        const delay = (attempt + 1) * 1000
-        console.warn(`[Proxy] 429 for ${symbol}, retry ${attempt + 1}/${maxRetries} in ${delay}ms`)
+        const jitter = Math.random() * 1000
+        const delay = Math.pow(2, attempt) * 2000 + jitter
+        console.warn(`[Proxy] 429 for ${symbol}, retry ${attempt + 1}/${maxRetries} in ${Math.round(delay)}ms`)
         await new Promise(r => setTimeout(r, delay))
         continue
       }
@@ -242,8 +308,11 @@ async function proxyV7Quote(symbols) {
     `symbols=${encodeURIComponent(symbols)}` +
     `&crumb=${encodeURIComponent(crumb)}`
 
-  const maxRetries = 2
+  const maxRetries = 3
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await checkpointCooldown()
+    await rateLimiter.wait()
+
     const res = await fetch(targetUrl, {
       headers: {
         ...YAHOO_HEADERS,
@@ -264,9 +333,12 @@ async function proxyV7Quote(symbols) {
         const s = sym.trim()
         if (s) stats.bySymbol[s] = (stats.bySymbol[s] || 0) + 1
       }
+      record429()
+      trigger429Cooldown()
       if (attempt < maxRetries) {
-        const delay = (attempt + 1) * 1000
-        console.warn(`[Proxy] 429 for [${symbols}], retry ${attempt + 1}/${maxRetries} in ${delay}ms`)
+        const jitter = Math.random() * 1000
+        const delay = Math.pow(2, attempt) * 2000 + jitter
+        console.warn(`[Proxy] 429 for [${symbols}], retry ${attempt + 1}/${maxRetries} in ${Math.round(delay)}ms`)
         await new Promise(r => setTimeout(r, delay))
         continue
       }
@@ -285,6 +357,49 @@ async function proxyV7Quote(symbols) {
   }
 }
 
+// ─── V8 Chart Proxy ─────────────────────────────────────────────────
+async function proxyV8Chart(symbol, interval, range) {
+  const { crumb, cookies } = await getCrumb()
+  const targetUrl =
+    `https://query1.finance.yahoo.com/v8/finance/chart/` +
+    `${encodeURIComponent(symbol)}?interval=${encodeURIComponent(interval)}` +
+    `&range=${encodeURIComponent(range)}` +
+    `&crumb=${encodeURIComponent(crumb)}`
+
+  await checkpointCooldown()
+  await rateLimiter.wait()
+
+  const res = await fetch(targetUrl, {
+    headers: {
+      ...YAHOO_HEADERS,
+      Cookie: cookies,
+    },
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+
+    if (res.status === 429) {
+      stats[429]++
+      record429()
+      trigger429Cooldown()
+      throw new Error(`Yahoo returned 429 (Too Many Requests) for ${symbol}`)
+    }
+
+    if (res.status === 401) {
+      stats[401]++
+      crumbStore = null
+      throw new Error(`Yahoo returned 401 (Unauthorized): ${text}`)
+    }
+
+    stats.other++
+    throw new Error(`Yahoo returned ${res.status}: ${text}`)
+  }
+
+  stats.total++
+  return res.json()
+}
+
 // ─── Batch Fundamentals ────────────────────────────────────────
 
 async function fetchSingleFundamental(symbol, modules, crumb, cookies) {
@@ -293,9 +408,12 @@ async function fetchSingleFundamental(symbol, modules, crumb, cookies) {
     `${encodeURIComponent(symbol)}?modules=${encodeURIComponent(modules)}` +
     `&crumb=${encodeURIComponent(crumb)}`
 
-  const maxRetries = 2
+  const maxRetries = 3
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      await checkpointCooldown()
+      await rateLimiter.wait()
+
       const res = await fetch(targetUrl, {
         headers: {
           ...YAHOO_HEADERS,
@@ -311,8 +429,11 @@ async function fetchSingleFundamental(symbol, modules, crumb, cookies) {
 
       if (res.status === 429) {
         stats[429]++
+        record429()
+        trigger429Cooldown()
         if (attempt < maxRetries) {
-          const delay = (attempt + 1) * 1000
+          const jitter = Math.random() * 1000
+          const delay = Math.pow(2, attempt) * 2000 + jitter
           await new Promise(r => setTimeout(r, delay))
           continue
         }
@@ -321,6 +442,7 @@ async function fetchSingleFundamental(symbol, modules, crumb, cookies) {
 
       if (res.status === 401) {
         stats[401]++
+        crumbStore = null
         return { symbol, error: `Yahoo returned 401 (Unauthorized)` }
       }
 
@@ -328,7 +450,8 @@ async function fetchSingleFundamental(symbol, modules, crumb, cookies) {
       return { symbol, error: `Yahoo returned ${res.status}` }
     } catch (err) {
       if (attempt < maxRetries) {
-        const delay = (attempt + 1) * 1000
+        const jitter = Math.random() * 1000
+        const delay = Math.pow(2, attempt) * 2000 + jitter
         await new Promise(r => setTimeout(r, delay))
         continue
       }
@@ -354,7 +477,7 @@ async function handleBatchFundamentals(req, res, parsed) {
 
     const { crumb, cookies } = await getCrumb()
     const results = {}
-    const SERVER_CONCURRENCY = 10
+    const SERVER_CONCURRENCY = 3
     const queue = [...rawSymbols]
     let active = 0
 
@@ -363,7 +486,7 @@ async function handleBatchFundamentals(req, res, parsed) {
         const symbol = queue.shift()
         active++
         const result = await fetchSingleFundamental(symbol, modules, crumb, cookies)
-        const key = symbol.replace(/\.NS$/i, '')
+        const key = symbol.replace(/\.(NS|BO)$/i, '')
         results[key] = {
           symbol: key,
           data: result.data || null,
@@ -376,6 +499,10 @@ async function handleBatchFundamentals(req, res, parsed) {
     const workers = []
     for (let i = 0; i < Math.min(SERVER_CONCURRENCY, queue.length || 1); i++) {
       workers.push(processNext())
+      // Stagger worker starts by 500ms to avoid burst at startup
+      if (i < SERVER_CONCURRENCY - 1) {
+        await new Promise(r => setTimeout(r, 500))
+      }
     }
     await Promise.all(workers)
 
@@ -442,7 +569,12 @@ const server = http.createServer(async (req, res) => {
   // Handle /v7/finance/quote
   const v7Match = parsed.pathname === '/v7/finance/quote'
 
-  if (!v10Match && !v7Match) {
+  // Handle /v8/finance/chart/{symbol}
+  const v8Match = parsed.pathname.match(
+    /^\/v8\/finance\/chart\/(.+)$/,
+  )
+
+  if (!v10Match && !v7Match && !v8Match) {
     res.writeHead(404, { 'Content-Type': 'application/json' })
     res.end(
       JSON.stringify({
@@ -459,9 +591,16 @@ const server = http.createServer(async (req, res) => {
       const data = await proxyQuoteSummary(symbol, modules)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(data))
-    } else {
+    } else if (v7Match) {
       const symbols = parsed.query.symbols || ''
       const data = await proxyV7Quote(symbols)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(data))
+    } else if (v8Match) {
+      const symbol = decodeURIComponent(v8Match[1])
+      const interval = parsed.query.interval || '1d'
+      const range = parsed.query.range || '1y'
+      const data = await proxyV8Chart(symbol, interval, range)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(data))
     }

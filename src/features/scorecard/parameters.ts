@@ -7,6 +7,8 @@ export interface ParameterMeta {
   unit?: string
 }
 
+import { GLOSSARY_TERMS } from '../glossary/terms'
+
 export interface CategoryDefinition {
   id: string
   name: string
@@ -240,4 +242,21 @@ export const PARAMETER_META: Record<string, ParameterMeta> = {
     description: 'Market capitalization',
     unit: 'INR Cr',
   },
+}
+
+export interface GlossaryInfo {
+  name: string
+  definition: string
+  example?: string
+  whyMatters?: string
+}
+
+const glossaryByName = new Map<string, GlossaryInfo>(
+  GLOSSARY_TERMS.map((t) => [t.name, t]),
+)
+
+export function getGlossaryInfo(key: string): GlossaryInfo | null {
+  const meta = PARAMETER_META[key]
+  if (!meta) return null
+  return glossaryByName.get(meta.name) ?? null
 }

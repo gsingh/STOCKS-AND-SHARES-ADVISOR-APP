@@ -32,16 +32,21 @@ function toScoringInput(fundamental: FundamentalData): ScoringInput {
 }
 
 export async function getStockData(symbol: string): Promise<DataEnvelope<StockData>> {
+  console.log(`[getStockData] Fetching ${symbol}...`)
   const [quoteResult, fundamentalResult] = await Promise.all([
     getQuote(symbol),
     getFundamentals(symbol),
   ])
+
+  console.log(`[getStockData] ${symbol}: quote=${quoteResult.data !== null ? 'YES' : 'NO'}(${quoteResult.source}) fund=${fundamentalResult.data !== null ? 'YES' : 'NO'}(${fundamentalResult.source})`)
 
   const quoteData = quoteResult.data
   const fundamentalData = fundamentalResult.data
 
   const hasQuote = quoteData !== null
   const hasFundamental = fundamentalData !== null
+  if (hasQuote) console.log(`[stock] ${symbol}: quote OK price=${quoteData!.lastPrice}`)
+  if (hasFundamental) console.log(`[stock] ${symbol}: fund OK pe=${fundamentalData!.peRatio}`)
 
   if (!hasQuote && !hasFundamental) {
     return {

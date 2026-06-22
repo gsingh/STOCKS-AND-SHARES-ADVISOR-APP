@@ -1,3 +1,5 @@
+import { toYahooSymbol } from './yahoo-symbol'
+
 export interface PricePoint {
   date: string
   close: number
@@ -47,9 +49,5 @@ export async function fetchPriceHistory(
 ): Promise<PricePoint[]> {
   const range = getYahooRange(period)
 
-  let points = await fetchPriceHistoryRaw(`${symbol}.NS`, range)
-  if (points.length > 0) return points
-
-  points = await fetchPriceHistoryRaw(`${symbol}.BO`, range)
-  return points
+  return await fetchPriceHistoryRaw(toYahooSymbol(symbol), range)
 }

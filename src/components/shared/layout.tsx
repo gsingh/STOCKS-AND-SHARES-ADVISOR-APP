@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
   Landmark,
+  Star,
 } from 'lucide-react'
 import { useUIStore } from '../../stores'
 import { ToastContainer } from './toast'
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', icon: <LayoutDashboard size={20} />, href: '/' },
   { label: 'Stocks', icon: <TrendingUp size={20} />, href: '/stocks' },
   { label: 'Buffett', icon: <Landmark size={20} />, href: '/buffett' },
+  { label: 'Jhunjhunwala', icon: <Star size={20} />, href: '/jhunjhunwala' },
   { label: 'Compare', icon: <GitCompare size={20} />, href: '/compare' },
   { label: 'Portfolio', icon: <PieChart size={20} />, href: '/portfolio' },
   { label: 'Goals', icon: <Target size={20} />, href: '/goals' },

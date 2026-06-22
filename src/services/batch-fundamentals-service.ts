@@ -3,14 +3,15 @@ import type { FundamentalData } from './screener-service'
 import { parseYahooQuoteSummaryResult, fillFundamentalData } from './yahoo-fundamentals-service'
 import { getFundamentals } from './fundamentals-service'
 import { db, withErrorHandling } from './db'
+import { toYahooSymbol } from './yahoo-symbol'
 
 const BATCH_CHUNK_SIZE = 100
-const MODULES = 'summaryDetail,defaultKeyStatistics,financialData'
+const MODULES = 'summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,earningsHistory'
 
 async function fetchChunkViaBatch(
   symbols: string[],
 ): Promise<Record<string, DataEnvelope<FundamentalData>>> {
-  const yahooSymbols = symbols.map((s) => `${s}.NS`).join(',')
+  const yahooSymbols = symbols.map(toYahooSymbol).join(',')
   const url = `/api/yahoo/batch-fundamentals?symbols=${encodeURIComponent(yahooSymbols)}&modules=${encodeURIComponent(MODULES)}`
 
   const res = await fetch(url)

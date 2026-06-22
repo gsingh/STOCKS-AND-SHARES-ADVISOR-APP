@@ -1,5 +1,5 @@
 import { ScoreGauge, TermInfo } from '../../shared'
-import { PARAMETER_META } from '../../../features/scorecard/parameters'
+import { PARAMETER_META, getGlossaryInfo } from '../../../features/scorecard/parameters'
 import { formatNumber, formatPercent, formatCurrency } from '../../../lib/format'
 import type { ScoringResult } from '../../../features/scorecard/types'
 
@@ -69,17 +69,25 @@ export function ScorecardPanel({ result }: ScorecardPanelProps) {
                           <span className="text-sm font-medium text-[var(--foreground)]">
                             {meta?.name ?? param.name}
                           </span>
-                          {meta && (
-                            <TermInfo
-                              term={meta.name}
-                              definition={meta.description}
-                              example={
-                                meta.unit === '%'
-                                  ? `A value of 15% would score ${Math.round(meta.scorer(15))}/20`
-                                  : undefined
-                              }
-                            />
-                          )}
+                          {meta && (() => {
+                            const g = getGlossaryInfo(param.key)
+                            if (g) {
+                              return (
+                                <TermInfo
+                                  term={g.name}
+                                  definition={g.definition}
+                                  example={g.example}
+                                  whyMatters={g.whyMatters}
+                                />
+                              )
+                            }
+                            return (
+                              <TermInfo
+                                term={meta.name}
+                                definition={meta.description}
+                              />
+                            )
+                          })()}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs tabular-nums text-[var(--muted-foreground)]">

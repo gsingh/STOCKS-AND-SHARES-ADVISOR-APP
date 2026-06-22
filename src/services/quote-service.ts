@@ -1,5 +1,6 @@
 import { db, withErrorHandling, type StockRow } from './db'
 import type { DataEnvelope } from '../types/envelope'
+import { toYahooSymbol, fromYahooSymbol } from './yahoo-symbol'
 
 const QUOTE_TTL = 15 * 60 * 1000
 
@@ -33,9 +34,13 @@ function toQuoteData(row: StockRow): QuoteData {
 }
 
 async function fetchFromYahoo(symbol: string): Promise<QuoteData> {
-  const yahooSymbol = `${symbol}.NS`
+  const yahooSymbol = toYahooSymbol(symbol)
+  console.log(`[quote] Fetching ${yahooSymbol} via V8...`)
   const res = await fetch(`/api/yahoo/v8/finance/chart/${yahooSymbol}?interval=1d&range=1d`)
-  if (!res.ok) throw new Error(`Yahoo Finance returned ${res.status}`)
+  if (!res.ok) {
+    console.warn(`[quote] ${symbol}: V8 returned ${res.status}`)
+    throw new Error(`Yahoo Finance returned ${res.status}`)
+  }
   const json = await res.json()
   const meta = json.chart?.result?.[0]?.meta
   if (!meta) throw new Error('Invalid Yahoo Finance response')
@@ -59,7 +64,7 @@ async function fetchFromYahoo(symbol: string): Promise<QuoteData> {
 }
 
 async function fetchQuotesBatchFromYahoo(symbols: string[]): Promise<Record<string, QuoteData>> {
-  const yahooSymbols = symbols.map((s) => `${s}.NS`).join(',')
+  const yahooSymbols = symbols.map(toYahooSymbol).join(',')
   const url = `/api/yahoo/v7/finance/quote?symbols=${encodeURIComponent(yahooSymbols)}`
 
   const res = await fetch(url)
@@ -74,7 +79,7 @@ async function fetchQuotesBatchFromYahoo(symbols: string[]): Promise<Record<stri
   for (const item of items) {
     const rawSymbol = item.symbol as string | undefined
     if (!rawSymbol) continue
-    const symbol = rawSymbol.replace('.NS', '')
+    const symbol = fromYahooSymbol(rawSymbol)
 
     const lastPrice = (item.regularMarketPrice as number) ?? 0
     const prevClose = (item.regularMarketPreviousClose as number) ?? 0
@@ -97,12 +102,13 @@ async function fetchQuotesBatchFromYahoo(symbols: string[]): Promise<Record<stri
 }
 
 async function persist(symbol: string, data: QuoteData): Promise<void> {
+  const existing = await withErrorHandling(() => db.stock.get(symbol), undefined)
   await withErrorHandling(
     () =>
       db.stock.put({
         symbol,
-        name: '',
-        sector: '',
+        name: existing?.name || '',
+        sector: existing?.sector || '',
         lastPrice: data.lastPrice,
         change: data.change,
         changePercent: data.changePercent,

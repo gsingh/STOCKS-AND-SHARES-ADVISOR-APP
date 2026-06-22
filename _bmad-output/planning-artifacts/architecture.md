@@ -512,6 +512,96 @@ All potential conflict points addressed — naming (7 rules), structure (feature
 - Dexie schema definitions refined during implementation
 - Testing coverage thresholds formalized per feature
 
+### Forecast Microservice Architecture
+
+The price forecasting feature introduces a Python microservice that runs alongside the React SPA, deviating from the zero-backend architecture for this one feature. The model size (200M params, ~400MB) makes in-browser inference impractical.
+
+#### Deployment Model
+
+- **Service:** Python FastAPI (`forecast-service/main.py`) on `localhost:8000`
+- **Model:** TimesFM 2.5 — 200M parameters, PyTorch, loaded once at startup via FastAPI lifespan
+- **Startup:** `npm run forecast` → `bash forecast-service/run.sh` → creates venv, installs deps, starts uvicorn
+- **Proxy:** nginx (production) + Vite dev proxy → route `/api/forecast/*` to `localhost:8000`
+- **Dependencies:** `timesfm[torch]==2.0.1`, `fastapi`, `uvicorn`, `numpy`, `pandas`, `torch`
+
+#### API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Health check — returns model load status and model ID |
+| `/forecast` | POST | Single-stock forecast — accepts `{ series, horizon }`, returns `{ point, quantiles, horizon, modelVersion }` |
+| `/forecast/batch` | POST | Batch forecast — accepts `{ seriesList, horizon }`, returns `{ forecasts[], elapsedMs }` |
+
+#### Model Configuration
+
+- `max_context=1024` — Maximum input context window
+- `max_horizon=256` — Maximum forecast horizon (supports up to 256 future steps, but limited to 365 by Pydantic validation)
+- `normalize_inputs=True` — Instance normalization for input time series
+- `use_continuous_quantile_head=True` — Enables quantile predictions (p10-p90)
+- `force_flip_invariance=True` — Ensures forecast invariance to sign flips
+- `infer_is_positive=True` — Clips forecasts to non-negative (prices can't be negative)
+- `fix_quantile_crossing=True` — Prevents quantile crossing (p50 < p60 even after perturbation)
+
+#### Quantile Output Structure
+
+The model outputs 10 quantile levels per forecast step:
+- **Index 0:** Mean/base value
+- **Index 1:** p10 (10th percentile)
+- **Index 2:** p20
+- **Index 3:** p30
+- **Index 4:** p40
+- **Index 5:** p50 (median — also the point forecast)
+- **Index 6:** p60
+- **Index 7:** p70
+- **Index 8:** p80
+- **Index 9:** p90 (90th percentile)
+
+The `main.py` maps indices 1-9 to labels `"p10"` through `"p90"`, and index 0 to `"mean"`.
+
+#### Data Flow
+
+```
+User Action → ForecastPanel/MarketForecastPreview (React)
+  → fetchPriceHistory(symbol) → Yahoo Finance proxy (Node.js) → Yahoo Finance API
+  → getForecast(series, horizon) → POST /api/forecast/forecast
+  → nginx/Vite proxy → forecast-service:8000 → TimesFM model inference
+  → { point, quantiles } → ForecastChart (Recharts with confidence bands)
+```
+
+#### Caching
+
+| Layer | Strategy | TTL |
+|-------|----------|-----|
+| Frontend (`forecast-store.ts`) | Zustand + localStorage | 24 hours |
+| Forecast service | Stateless — model pre-loaded at startup | N/A |
+| Price history | Dexie `priceHistory` table | 15-minute quotes |
+
+#### Architectural Decision: Why a Separate Microservice?
+
+1. **Model size:** TimesFM 2.5 is ~400MB. Browser-based inference (ONNX.js or TF.js) is not feasible.
+2. **GPU optional:** PyTorch runs on CPU adequately for single-request inference (2-5 seconds per forecast).
+3. **Language mismatch:** TimesFM is Python-only. The React app is TypeScript. A FastAPI microservice is the cleanest bridge.
+4. **Isolation:** Model crashes don't take down the main SPA. The frontend degrades gracefully with error states and retry buttons.
+5. **Future upgrade path:** The service can be containerized, GPU-accelerated, or replaced with a fine-tuned model without touching the frontend.
+
+#### Frontend Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `ForecastPanel` | `src/features/forecast/ForecastPanel.tsx` | Full forecast on stock detail page with horizon selector, auto-triggers on load |
+| `ForecastChart` | `src/features/forecast/ForecastChart.tsx` | Recharts area chart with historical + forecast data and confidence bands |
+| `MarketForecastPreview` | `src/features/forecast/MarketForecastPreview.tsx` | Compact 30-day Nifty 50 forecast preview on Dashboard with retry |
+| `CompareForecast` | `src/features/forecast/CompareForecast.tsx` | Overlaid forecasts for up to 4 stocks on Compare page |
+
+#### Error & Loading States
+
+| State | Behavior |
+|-------|----------|
+| Service not running | Error message: "Forecast service unavailable" + Retry button |
+| Insufficient history (<4 points) | Static message: "Not enough historical data to generate a forecast." |
+| Loading | Spinner with contextual text ("Loading price history...", "Generating forecast...") |
+| Empty (after auto-trigger) | Covered by loading state; auto-trigger fires immediately when history loads |
+
 ### Implementation Handoff
 
 **AI Agent Guidelines:**

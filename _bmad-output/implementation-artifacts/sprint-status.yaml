@@ -155,3 +155,12 @@ development_status:
    12-4-implement-theme-toggle: done
    12-5-implement-weight-defaults-configuration: done
    epic-12-retrospective: optional
+
+   # ── Epic 13: Price Forecasting ─────────────────────────────────────────────
+   epic-13: done
+   13-1-document-forecast-architecture: done
+   13-2-fix-quantile-label-bug: done
+   13-3-expand-yahoo-symbol-override-map: done
+   13-4-add-retry-button-market-forecast-preview: done
+   13-5-auto-trigger-forecast-stock-detail: done
+   epic-13-retrospective: optional

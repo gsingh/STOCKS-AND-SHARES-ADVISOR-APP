@@ -9,12 +9,14 @@ import GlossaryPage from './routes/glossary'
 import SettingsPage from './routes/settings'
 import XirrPage from './routes/xirr'
 import { BuffettPage } from './routes/buffett'
+import { JhunjhunwalaPage } from './routes/jhunjhunwala'
 import { StockBrowserPage } from './routes/stocks'
 import { StockDetailPage } from './routes/stocks.$symbol'
 import { MarketSummary } from './components/features/dashboard/market-summary'
 import { PortfolioSnapshot } from './components/features/dashboard/portfolio-snapshot'
 import { ActiveAlerts } from './components/features/dashboard/active-alerts'
 import { QuickActions } from './components/features/dashboard/quick-actions'
+import { MarketForecastPreview } from './features/forecast/MarketForecastPreview'
 import ComparePage from './routes/compare'
 import PortfolioPage from './routes/portfolio'
 import ReviewsPage from './routes/reviews'
@@ -39,6 +41,10 @@ const indexRoute = createRoute({
       <section>
         <h2 className="mb-3 text-lg font-semibold text-[var(--foreground)]">Market Summary</h2>
         <MarketSummary />
+      </section>
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-[var(--foreground)]">Market Forecast</h2>
+        <MarketForecastPreview />
       </section>
       <section>
         <h2 className="mb-3 text-lg font-semibold text-[var(--foreground)]">Portfolio Snapshot</h2>
@@ -68,6 +74,12 @@ const buffettRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/buffett',
   component: BuffettPage,
+})
+
+const jhunjhunwalaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/jhunjhunwala',
+  component: JhunjhunwalaPage,
 })
 
 const compareRoute = createRoute({
@@ -143,6 +155,7 @@ const routeTree = rootRoute.addChildren([
   stocksRoute,
   stockDetailRoute,
   buffettRoute,
+  jhunjhunwalaRoute,
   compareRoute,
   portfolioRoute,
   goalsRoute,

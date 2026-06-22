@@ -8,6 +8,7 @@
 
 import type { DataEnvelope } from '../types/envelope'
 import type { FundamentalData } from './screener-service'
+import { toYahooSymbol } from './yahoo-symbol'
 
 const CORE_FIELDS: (keyof FundamentalData)[] = [
   'peRatio',
@@ -51,6 +52,34 @@ export function parseYahooQuoteSummaryResult(
   const dks = result.defaultKeyStatistics ?? {}
   const fd = result.financialData ?? {}
 
+  const rg = parseRaw(fd.revenueGrowth?.raw ?? fd.revenueGrowth)
+  const eg = parseRaw(fd.earningsGrowth?.raw ?? fd.earningsGrowth)
+
+  let revenueGrowth: number | undefined = rg !== undefined ? rg * 100 : undefined
+  let epsGrowth: number | undefined = eg !== undefined ? eg * 100 : undefined
+
+  if (revenueGrowth === undefined) {
+    const ish = result.incomeStatementHistory?.incomeStatementHistory ?? []
+    if (ish.length >= 2 && ish[0]?.totalRevenue?.raw && ish[1]?.totalRevenue?.raw) {
+      const latest = ish[0].totalRevenue.raw as number
+      const previous = ish[1].totalRevenue.raw as number
+      if (previous !== 0) {
+        revenueGrowth = ((latest - previous) / Math.abs(previous)) * 100
+      }
+    }
+  }
+
+  if (epsGrowth === undefined) {
+    const eh = result.earningsHistory?.earningsHistory ?? []
+    if (eh.length >= 8) {
+      const ttmLatest = eh.slice(0, 4).reduce((sum: number, q: any) => sum + (q.epsActual?.raw ?? 0), 0)
+      const ttmPrior = eh.slice(4, 8).reduce((sum: number, q: any) => sum + (q.epsActual?.raw ?? 0), 0)
+      if (ttmPrior !== 0 && ttmLatest !== 0) {
+        epsGrowth = ((ttmLatest - ttmPrior) / Math.abs(ttmPrior)) * 100
+      }
+    }
+  }
+
   const partial: Partial<FundamentalData> = {
     marketCap: parseRaw(sd.marketCap?.raw ?? sd.marketCap),
     peRatio: parseRaw(sd.trailingPE?.raw ?? sd.trailingPE),
@@ -64,8 +93,8 @@ export function parseYahooQuoteSummaryResult(
     bookValue: parseRaw(dks.bookValue?.raw ?? dks.bookValue),
     promoterHolding: parseRaw(dks.heldPercentInsiders?.raw ?? dks.heldPercentInsiders),
     freeCashFlow: parseRaw(fd.freeCashflow?.raw ?? fd.freeCashflow),
-    revenueGrowth: parseRaw(fd.revenueGrowth?.raw ?? fd.revenueGrowth),
-    epsGrowth: parseRaw(fd.earningsGrowth?.raw ?? fd.earningsGrowth),
+    revenueGrowth,
+    epsGrowth,
     currentPrice: parseRaw(
       fd.currentPrice?.raw ?? fd.currentPrice ?? sd.regularMarketPrice?.raw ?? sd.regularMarketPrice,
     ),
@@ -102,7 +131,6 @@ export function fillFundamentalData(partial: Partial<FundamentalData>): Fundamen
   }
 }
 
-const EXCHANGE_SUFFIXES = ['.NS', '.BO']
 
 async function tryFetchYahooSymbol(
   yahooSymbol: string,
@@ -132,30 +160,29 @@ async function tryFetchYahooSymbol(
 export async function fetchFundamentalsFromYahoo(
   symbol: string,
 ): Promise<DataEnvelope<FundamentalData>> {
-  const modules = 'summaryDetail,defaultKeyStatistics,financialData'
+  const modules = 'summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,earningsHistory'
 
-  const errors: string[] = []
-
-  for (const suffix of EXCHANGE_SUFFIXES) {
-    try {
-      const result = await tryFetchYahooSymbol(`${symbol}${suffix}`, modules)
-      if (result.data) {
-        return {
-          data: result.data,
-          fetchedAt: new Date().toISOString(),
-          source: 'api',
-        }
+  try {
+    const result = await tryFetchYahooSymbol(toYahooSymbol(symbol), modules)
+    if (result.data) {
+      return {
+        data: result.data,
+        fetchedAt: new Date().toISOString(),
+        source: 'api',
       }
-      if (result.error) errors.push(result.error)
-    } catch (err) {
-      errors.push(err instanceof Error ? err.message : String(err))
     }
-  }
-
-  return {
-    data: null,
-    fetchedAt: null,
-    source: 'api',
-    error: errors.join('; '),
+    return {
+      data: null,
+      fetchedAt: null,
+      source: 'api',
+      error: result.error || 'No data returned',
+    }
+  } catch (err) {
+    return {
+      data: null,
+      fetchedAt: null,
+      source: 'api',
+      error: err instanceof Error ? err.message : String(err),
+    }
   }
 }

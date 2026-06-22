@@ -31,10 +31,20 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/yahoo\/v10/, '/v10'),
       },
+      '/api/yahoo/v8': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/yahoo\/v8/, '/v8'),
+      },
       '/api/yahoo/v7': {
         target: 'http://localhost:3001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/yahoo\/v7/, '/v7'),
+      },
+      '/api/forecast': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/forecast/, ''),
       },
       '/api/yahoo': {
         target: 'https://query1.finance.yahoo.com',

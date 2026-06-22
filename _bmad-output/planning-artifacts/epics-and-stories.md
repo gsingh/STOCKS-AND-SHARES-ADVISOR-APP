@@ -157,6 +157,7 @@ Each epic delivers a coherent increment of user value. Epic boundaries follow fe
 | Risk Profiling | FR-14, FR-15, AR-13 | 10 |
 | Glossary & XIRR | FR-35, FR-36, FR-37, UX-10 | 11 |
 | Settings & Data Mgmt | FR-38, FR-39, FR-40, FR-41, UX-9 | 12 |
+| Price Forecasting | FR-42 | 13 |
 
 ## Epic List
 
@@ -174,6 +175,7 @@ Each epic delivers a coherent increment of user value. Epic boundaries follow fe
 | 10 | Risk Profiling | FR-14, FR-15 | 3 | User determines risk profile and style |
 | 11 | Glossary & XIRR Calculator | FR-35, FR-36, FR-37 | 4 | User learns terms and computes XIRR |
 | 12 | Settings & Data Management | FR-38, FR-39, FR-40, FR-41 | 5 | User configures app and manages data |
+| 13 | Price Forecasting | FR-42 | 5 | AI-powered price forecasts for any NSE stock using TimesFM 2.5 |
 
 ---
 
@@ -1349,3 +1351,82 @@ So that I can manage my scoring preferences centrally.
 **Then** current custom weights are displayed (if any) with "Factory Reset" button
 **And** clicking "Reset to Defaults" clears custom weights and restores equal-weighted defaults
 **And** a confirmation dialog appears before reset: "This will reset all parameter weights to default values."
+
+---
+
+## Epic 13: Price Forecasting
+
+**Goal:** Deliver AI-powered price forecasting for any NSE stock using Google's TimesFM 2.5 time-series foundation model. This epic documents the existing forecast microservice, fixes bugs, and polishes the user experience. Fine-tuning on Indian market data is deferred to a future epic.
+
+This epic delivers: formal documentation of the forecast architecture in PRD/architecture/epics docs, bug fixes (quantile label mapping), expanded Yahoo symbol mappings, improved error recovery on the dashboard, and auto-triggered forecasts on stock detail pages.
+
+### Story 13.1: Document forecast architecture
+
+As a developer,
+I want the forecasting feature formally documented in the project's planning artifacts,
+So that the architecture, data flow, and deployment requirements for the TimesFM forecast microservice are captured alongside the existing 12 epics.
+
+**Acceptance Criteria:**
+
+**Given** the forecasting feature is already implemented but undocumented
+**When** the documentation is added
+**Then** `addendum.md` includes a Price Forecasting section with FR-42 and glossary terms
+**And** `architecture.md` includes a Forecast Microservice section covering model details, data flow, caching, and deployment
+**And** `epics-and-stories.md` includes Epic 13 with stories 13.1-13.5
+
+### Story 13.2: Fix quantile label bug in forecast service
+
+As a developer,
+I want the quantile labels in the forecast service to correctly map to all returned quantile rows,
+So that no quantile data is silently dropped and all confidence bands render correctly.
+
+**Acceptance Criteria:**
+
+**Given** the forecast service returns quantile forecast data
+**When** the shape check at `forecast-service/main.py:112` matches the actual model output
+**Then** all quantile rows are mapped to correct percentile labels
+**And** both `POST /forecast` and `POST /forecast/batch` endpoints return the correct number of quantile keys
+**And** a sample forecast call returns all expected quantiles in the response
+
+### Story 13.3: Expand Yahoo symbol override map
+
+As a retail investor,
+I want Yahoo Finance ticker lookups to work for all Nifty 50 stocks,
+So that forecasts and price history load correctly for every major Indian stock.
+
+**Acceptance Criteria:**
+
+**Given** the NSE-to-Yahoo symbol mapping in `src/services/yahoo-symbol.ts`
+**When** Nifty 50 stocks are researched for Yahoo ticker mismatches
+**Then** all identified mismatches are added to the `NSE_TO_YAHOO` override map
+**And** `toYahooSymbol()` returns the correct Yahoo ticker for every Nifty 50 stock
+**And** round-trip via `fromYahooSymbol()` still works for overridden symbols
+
+### Story 13.4: Add retry button to MarketForecastPreview
+
+As a user viewing the Dashboard,
+I want a retry button when the market forecast preview fails to load,
+So that I can recover from transient forecast-service errors without refreshing the page.
+
+**Acceptance Criteria:**
+
+**Given** the MarketForecastPreview component on the Dashboard
+**When** the forecast service is unavailable or fails
+**Then** the error state includes a retry button styled consistently with ForecastPanel
+**And** clicking retry re-initiates the full load sequence (price history → forecast → chart)
+**And** the loading state is shown during retry
+
+### Story 13.5: Auto-trigger forecast on stock detail load
+
+As a user viewing a stock's detail page,
+I want the price forecast to auto-generate on page load instead of requiring a manual click,
+So that I see forecast data immediately without an extra interaction step.
+
+**Acceptance Criteria:**
+
+**Given** the user navigates to a stock detail page
+**When** price history has loaded with sufficient data (>=4 points)
+**Then** the forecast is automatically generated without requiring a manual click
+**And** the existing "Refresh" button remains for manual re-generation
+**And** the "Not enough historical data" message is shown for stocks with <4 data points
+**And** switching the horizon selector triggers a new automatic forecast fetch

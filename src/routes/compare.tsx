@@ -9,15 +9,17 @@ import { PreCheckPanel } from '../components/features/compare/pre-check-panel'
 import { ScoringSummary } from '../components/features/compare/scoring-summary'
 import { InterplayPanel } from '../components/features/compare/interplay-panel'
 import { PriceHistoryChart } from '../components/features/compare/price-history-chart'
+import { CompareForecast } from '../features/forecast/CompareForecast'
 import { ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 
-const TABS = ['table', 'charts', 'performance', 'framework'] as const
+const TABS = ['table', 'charts', 'performance', 'forecast', 'framework'] as const
 type Tab = (typeof TABS)[number]
 
 const TAB_LABELS: Record<Tab, string> = {
   table: 'Comparison Table',
   charts: 'Charts',
   performance: 'Performance',
+  forecast: 'Forecast',
   framework: '8-Step Framework',
 }
 
@@ -89,6 +91,9 @@ export default function ComparePage() {
             <PriceHistoryChart
               stocks={entries.map((e) => ({ symbol: e.symbol, name: e.name }))}
             />
+          )}
+          {activeTab === 'forecast' && (
+            <CompareForecast symbols={symbols} />
           )}
           {activeTab === 'framework' && <FrameworkWizard />}
 

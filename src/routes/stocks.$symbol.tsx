@@ -8,6 +8,7 @@ import { getInterplayWarnings, getSectorConcentrationWarnings } from '../feature
 import { LoadingState } from '../components/shared/loading-state'
 import { ErrorState } from '../components/shared/error-state'
 import { FreshnessBadge } from '../components/shared/freshness-badge'
+import { ForecastPanel } from '../features/forecast/ForecastPanel'
 import { ScorecardPanel, ParameterInterplay, WeightCustomizer, ScoreHistoryChart, PriceChart } from '../components/features/scorecard'
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format'
 import type { StockData } from '../services/stock-service'
@@ -259,6 +260,7 @@ export function StockDetailPage() {
           <WeightCustomizer weights={weights} onWeightsChange={handleWeightsChange} />
           <ScoreHistoryChart snapshots={scoreSnapshots} />
           <PriceChart data={priceHistory} />
+          <ForecastPanel symbol={symbol} />
         </div>
 
         <div className="space-y-6">

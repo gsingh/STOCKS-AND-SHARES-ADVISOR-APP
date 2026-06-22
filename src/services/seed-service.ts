@@ -1,5 +1,6 @@
 import { db, withErrorHandling, type StockRow } from './db'
 import type { DataEnvelope } from '../types/envelope'
+import { toYahooSymbol } from './yahoo-symbol'
 
 const fallbackStocks: StockRow[] = [
   { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', sector: 'Oil & Gas' },
@@ -35,7 +36,7 @@ const fallbackStocks: StockRow[] = [
   { symbol: 'NESTLEIND', name: 'Nestlé India Ltd', sector: 'FMCG' },
   { symbol: 'HEROMOTOCO', name: 'Hero MotoCorp Ltd', sector: 'Automobile' },
   { symbol: 'BAJAJFINSV', name: 'Bajaj Finserv Ltd', sector: 'Finance' },
-  { symbol: 'TATAMOTORS', name: 'Tata Motors Ltd', sector: 'Automobile' },
+  { symbol: 'TMCV', name: 'Tata Motors Ltd', sector: 'Automobile' },
   { symbol: 'TATASTEEL', name: 'Tata Steel Ltd', sector: 'Metals' },
   { symbol: 'M&M', name: 'Mahindra & Mahindra Ltd', sector: 'Automobile' },
   { symbol: 'PNB', name: 'Punjab National Bank', sector: 'Banking' },
@@ -47,7 +48,7 @@ const fallbackStocks: StockRow[] = [
   { symbol: 'HINDALCO', name: 'Hindalco Industries Ltd', sector: 'Metals' },
   { symbol: 'DABUR', name: 'Dabur India Ltd', sector: 'FMCG' },
   { symbol: 'MARICO', name: 'Marico Ltd', sector: 'FMCG' },
-  { symbol: 'TORNTPHARMA', name: 'Torrent Pharmaceuticals Ltd', sector: 'Pharma' },
+  { symbol: 'TORNTPHARM', name: 'Torrent Pharmaceuticals Ltd', sector: 'Pharma' },
   { symbol: 'DIVISLAB', name: "Divi's Laboratories Ltd", sector: 'Pharma' },
   { symbol: 'APOLLOHOSP', name: 'Apollo Hospitals Enterprise Ltd', sector: 'Healthcare' },
   { symbol: 'INDUSINDBK', name: 'IndusInd Bank Ltd', sector: 'Banking' },
@@ -157,16 +158,20 @@ function inferSector(name: string): string {
 
 async function fetchNseSymbolsFromProxy(): Promise<StockRow[] | null> {
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
     const res = await fetch(`${PROXY_URL}/api/nse-symbols`, {
       headers: { Accept: 'application/json' },
+      signal: controller.signal,
     })
+    clearTimeout(timeout)
     if (!res.ok) {
       console.warn('NSE symbols fetch failed:', res.status, await res.text())
       return null
     }
     const stocks: Array<{ symbol: string; name: string; series: string; isin?: string }> = await res.json()
     return stocks.map((s) => ({
-      symbol: s.symbol,
+      symbol: toYahooSymbol(s.symbol).replace('.NS', ''),
       name: s.name,
       sector: inferSector(s.name),
     }))
@@ -211,17 +216,81 @@ export async function isSeeded(): Promise<boolean> {
   return count > 0
 }
 
+const INVALID_SYMBOLS = ['TORNTPHARMA', 'TATAMOTORS']
+
 export async function ensureSeeded(): Promise<DataEnvelope<StockRow[]>> {
+  console.log('[seed] ensureSeeded() starting...')
   const seeded = await isSeeded()
+  console.log(`[seed] isSeeded=${seeded}`)
   if (seeded) {
     await withErrorHandling(async () => {
-      await db.stock.bulkPut(fallbackStocks.map((s) => ({ ...s, fetchedAt: new Date().toISOString() })))
+      await db.stock.bulkDelete(INVALID_SYMBOLS)
+      await db.fundamental.bulkDelete(INVALID_SYMBOLS)
     }, undefined)
+
     const stocks = await withErrorHandling(() => db.stock.toArray(), [])
-    // If the universe looks stale (fewer than 100 stocks), refresh from the proxy
+    console.log(`[seed] DB has ${stocks.length} stocks`)
+
     if (stocks.length < 100) {
+      console.log('[seed] <100 stocks, re-fetching from NSE...')
       return fetchStockUniverse()
     }
+
+    const corruptedCount = stocks.filter((s) => !s.name || !s.sector).length
+    const corruptionRatio = corruptedCount / stocks.length
+
+    if (corruptionRatio > 0.2) {
+      console.warn(
+        `[Seed] ${corruptedCount} of ${stocks.length} stocks have missing name/sector (${(corruptionRatio * 100).toFixed(0)}%). Re-fetching from NSE proxy.`,
+      )
+      return fetchStockUniverse()
+    }
+
+    if (corruptedCount > 0) {
+      const fallbackMap = new Map(fallbackStocks.map((f) => [f.symbol, f]))
+      const repairs: StockRow[] = []
+      for (const stock of stocks) {
+        if ((!stock.name || !stock.sector) && fallbackMap.has(stock.symbol)) {
+          const fb = fallbackMap.get(stock.symbol)!
+          repairs.push({ ...stock, name: fb.name, sector: fb.sector })
+        }
+      }
+      if (repairs.length > 0) {
+        await withErrorHandling(() => db.stock.bulkPut(repairs), undefined)
+        for (const repair of repairs) {
+          const idx = stocks.findIndex((s) => s.symbol === repair.symbol)
+          if (idx >= 0) stocks[idx] = repair
+        }
+      }
+    }
+
+    const fundRows = await withErrorHandling(() => db.fundamental.toArray(), [])
+    const growthRepairs: Array<{ symbol: string; revenueGrowth?: number; epsGrowth?: number }> = []
+    for (const row of fundRows) {
+      const patch: { revenueGrowth?: number; epsGrowth?: number } = {}
+      if (row.revenueGrowth !== undefined && row.revenueGrowth !== 0 && Math.abs(row.revenueGrowth) < 5) {
+        patch.revenueGrowth = row.revenueGrowth * 100
+      }
+      if (row.epsGrowth !== undefined && row.epsGrowth !== 0 && Math.abs(row.epsGrowth) < 5) {
+        patch.epsGrowth = row.epsGrowth * 100
+      }
+      if (patch.revenueGrowth !== undefined || patch.epsGrowth !== undefined) {
+        growthRepairs.push({ symbol: row.symbol, ...patch })
+      }
+    }
+    if (growthRepairs.length > 0) {
+      console.log(`[Seed] Normalizing growth values from decimal to percent for ${growthRepairs.length} stocks`)
+      await withErrorHandling(async () => {
+        for (const r of growthRepairs) {
+          await db.fundamental.update(r.symbol, {
+            revenueGrowth: r.revenueGrowth,
+            epsGrowth: r.epsGrowth,
+          })
+        }
+      }, undefined)
+    }
+
+    console.log(`[seed] Returning ${stocks.length} stocks from cache`)
     return {
       data: stocks,
       fetchedAt: stocks.length > 0 ? (stocks[0].fetchedAt ?? null) : null,

@@ -98,3 +98,19 @@ From the Stock Study Guide — not implemented as a feature in v1, but reference
 8. Chasing past returns
 9. Overlooking free cash flow
 10. Emotional trading without a plan
+
+---
+
+## D. Price Forecasting (Epic 13)
+
+### Feature: FR-42 — AI-Powered Price Forecasts
+Generate multi-horizon price forecasts (30, 90, 365 days) for any NSE stock using Google's TimesFM 2.5 time-series foundation model. Forecasts include point predictions, confidence bands (p10-p90 quantiles), and are powered by a Python FastAPI microservice.
+
+### Glossary — Forecasting Terms
+
+- **TimesFM** — A pre-trained time-series foundation model by Google Research (200M parameters, v2.5). Works zero-shot on any time series without fine-tuning. Loaded from Hugging Face hub (`google/timesfm-2.5-200m-pytorch`).
+- **Zero-shot forecasting** — Generating predictions on new data without any task-specific training or fine-tuning. TimesFM's pre-training on diverse time-series data enables this for stock prices.
+- **Forecast horizon** — Number of future time steps to predict. Supported: 30 days (1 month), 90 days (3 months), 365 days (1 year).
+- **Quantile forecast** — Multiple percentile predictions (p10 through p90) forming a confidence band around the point forecast. Shows the range of probable outcomes.
+- **Point forecast** — Single "best estimate" prediction per future step. Derived from the median (p50) quantile of the model output.
+- **Confidence band** — The shaded area between lower (p10) and upper (p90) quantile predictions. Wider bands indicate higher uncertainty.

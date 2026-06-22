@@ -1,5 +1,7 @@
 import { Fragment } from 'react'
 import { buildScoredGroups, scoreColor } from '../../../features/compare/compare-data'
+import { getGlossaryInfo } from '../../../features/scorecard/parameters'
+import { TermInfo } from '../../shared'
 import type { CompareStockEntry } from '../../../features/compare/compare-types'
 
 interface ComparisonTableProps {
@@ -92,7 +94,21 @@ export function ComparisonTable({ entries }: ComparisonTableProps) {
                 return (
                   <tr key={row.key} className="border-b last:border-0 hover:bg-[var(--muted)]/10">
                     <td className="sticky left-0 z-10 bg-[var(--card)] px-3 py-2.5 text-sm font-medium text-[var(--foreground)]">
-                      {getRowLabel(row.key)}
+                      <div className="flex items-center gap-1">
+                        {getRowLabel(row.key)}
+                        {(() => {
+                          const g = getGlossaryInfo(row.key)
+                          if (!g) return null
+                          return (
+                            <TermInfo
+                              term={g.name}
+                              definition={g.definition}
+                              example={g.example}
+                              whyMatters={g.whyMatters}
+                            />
+                          )
+                        })()}
+                      </div>
                     </td>
                     {entries.map((_, i) => {
                       const sc = row.scores[i]

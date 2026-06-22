@@ -174,6 +174,17 @@ export const GLOSSARY_TERMS: GlossaryTerm[] = [
     relatedTerms: ['Promoter Holding', 'Governance Quality'],
   },
   {
+    name: 'Governance Quality',
+    definition:
+      "A composite rating (1-10) of a company's corporate governance practices including board independence, transparency, and minority shareholder treatment.",
+    category: 'Ownership',
+    example:
+      'A score of 8/10 indicates strong governance with independent directors, transparent disclosures, and fair treatment of minority shareholders.',
+    whyMatters:
+      'Poor governance can destroy shareholder value through related-party transactions, excessive executive compensation, or accounting irregularities. Strong governance is a cornerstone of long-term value creation.',
+    relatedTerms: ['Promoter Holding', 'Pledged Shares'],
+  },
+  {
     name: 'Market Cap',
     definition:
       'Market Capitalization is the total market value of a company\'s outstanding shares, calculated as share price × total shares outstanding.',

@@ -3,6 +3,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpDown, ArrowUp, ArrowDown, Plus, Briefcase } from 'lucide-react'
 import { useStockStore } from '../../../stores/stock-store'
 import { formatCurrency, formatNumber } from '../../../lib/format'
+import { getGlossaryInfo } from '../../../features/scorecard/parameters'
+import { TermInfo } from '../../shared'
 import { AddHoldingDialog } from '../portfolio/add-holding-dialog'
 
 export interface StockBrowserRow {
@@ -13,11 +15,19 @@ export interface StockBrowserRow {
   lastPrice?: number
   peRatio?: number
   roe?: number
+  roce?: number
+  debtToEquity?: number
+  revenueGrowth?: number
+  epsGrowth?: number
   score?: number
   buffettCompliant?: boolean
   buffettGates?: number
   buffettModifiedCompliant?: boolean
   buffettModifiedGates?: number
+  jhunjhunwalaCompliant?: boolean
+  jhunjhunwalaGates?: number
+  jhunjhunwalaModifiedCompliant?: boolean
+  jhunjhunwalaModifiedGates?: number
 }
 
 const PAGE_SIZE = 50
@@ -79,6 +89,30 @@ function getModifiedBuffettBadge(compliant?: boolean) {
   )
 }
 
+function getJhunjhunwalaBadge(compliant?: boolean) {
+  if (!compliant) return null
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400"
+      title="Passes Rakesh Jhunjhunwala's investment criteria"
+    >
+      RJ
+    </span>
+  )
+}
+
+function getModifiedJhunjhunwalaBadge(compliant?: boolean) {
+  if (!compliant) return null
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800 dark:bg-violet-900/40 dark:text-violet-400"
+      title="Passes Rakesh Jhunjhunwala Modified criteria (adapted for broader market coverage)"
+    >
+      RJ-M
+    </span>
+  )
+}
+
 const SORTABLE_COLUMNS: { key: SortKey; label: string; align?: string }[] = [
   { key: 'symbol', label: 'Ticker' },
   { key: 'name', label: 'Name' },
@@ -87,6 +121,10 @@ const SORTABLE_COLUMNS: { key: SortKey; label: string; align?: string }[] = [
   { key: 'marketCap', label: 'Mkt Cap', align: 'text-right' },
   { key: 'peRatio', label: 'P/E', align: 'text-right' },
   { key: 'roe', label: 'ROE', align: 'text-right' },
+  { key: 'roce', label: 'ROCE', align: 'text-right' },
+  { key: 'debtToEquity', label: 'D/E', align: 'text-right' },
+  { key: 'revenueGrowth', label: 'Rev Gr 3Y', align: 'text-right' },
+  { key: 'epsGrowth', label: 'Prof Gr 3Y', align: 'text-right' },
   { key: 'score', label: 'Score', align: 'text-right' },
   { key: 'buffettGates', label: 'Buffett', align: 'text-right' },
   { key: 'buffettModifiedGates', label: 'WB-Mod', align: 'text-right' },
@@ -162,7 +200,10 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
         <table className="w-full" role="grid">
           <thead className="bg-[var(--muted)]">
             <tr>
-              {SORTABLE_COLUMNS.map((col) => (
+              {SORTABLE_COLUMNS.map((col) => {
+                const g = getGlossaryInfo(col.key)
+                const isScore = col.key === 'score'
+                return (
                 <th
                   key={col.key}
                   className={`${headerClass} ${col.align ?? ''}`}
@@ -179,9 +220,25 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
                   <div className={`flex items-center gap-1 ${col.align ? 'justify-end' : ''}`}>
                     <SortIcon columnKey={col.key} />
                     {col.label}
+                    {g && (
+                      <TermInfo
+                        term={g.name}
+                        definition={g.definition}
+                        example={g.example}
+                        whyMatters={g.whyMatters}
+                      />
+                    )}
+                    {isScore && !g && (
+                      <TermInfo
+                        term="Composite Score"
+                        definition="A weighted composite score out of 100 based on 6 categories: Valuation, Quality, Financial Health, Growth, Ownership, and Size. Each parameter within a category is scored 0-20 and weighted appropriately."
+                        example="A score of 75/100 indicates a fundamentally strong stock that meets most investment criteria."
+                        whyMatters="The composite score provides a quick, holistic assessment of a stock's fundamental quality. Scores above 70 are considered strong, 50-70 average, and below 50 weak."
+                      />
+                    )}
                   </div>
                 </th>
-              ))}
+              )})}
               <th
                 className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)]"
                 aria-label="Add to compare"
@@ -228,9 +285,23 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
                 <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
                   {row.roe !== undefined ? `${formatNumber(row.roe)}%` : '—'}
                 </td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
+                  {row.roce !== undefined ? `${formatNumber(row.roce)}%` : '—'}
+                </td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
+                  {row.debtToEquity !== undefined ? formatNumber(row.debtToEquity) : '—'}
+                </td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
+                  {row.revenueGrowth !== undefined ? `${formatNumber(row.revenueGrowth)}%` : '—'}
+                </td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
+                  {row.epsGrowth !== undefined ? `${formatNumber(row.epsGrowth)}%` : '—'}
+                </td>
                 <td className="px-4 py-3 text-right">{getScoreBadge(row.score)}</td>
                 <td className="px-4 py-3 text-right">{getBuffettBadge(row.buffettCompliant)}</td>
                 <td className="px-4 py-3 text-right">{getModifiedBuffettBadge(row.buffettModifiedCompliant)}</td>
+                <td className="px-4 py-3 text-right">{getJhunjhunwalaBadge(row.jhunjhunwalaCompliant)}</td>
+                <td className="px-4 py-3 text-right">{getModifiedJhunjhunwalaBadge(row.jhunjhunwalaModifiedCompliant)}</td>
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={(e) => {
@@ -273,7 +344,7 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
             {paginated.length === 0 && (
               <tr>
                 <td
-                  colSpan={12}
+                  colSpan={18}
                   className="px-4 py-12 text-center text-sm text-[var(--muted-foreground)]"
                 >
                   No stocks match your criteria.

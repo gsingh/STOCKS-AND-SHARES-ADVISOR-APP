@@ -4,6 +4,7 @@ import { getStockData } from '../services/stock-service'
 import { db } from '../services/db'
 import { calculateScore } from '../features/scorecard/scoring-engine'
 import { evaluateBuffettSimple, evaluateModifiedBuffettSimple } from '../features/buffett/buffett-gates'
+import { evaluateJhunjhunwalaSimple, evaluateJhunjhunwalaModifiedSimple } from '../features/jhunjhunwala/jhunjhunwala-gates'
 import { useDebounce } from '../hooks/useDebounce'
 import { LoadingState } from '../components/shared/loading-state'
 import { StockSearch, StockFilters, StockTable, DEFAULT_FILTERS } from '../components/features/stock-browser'
@@ -40,6 +41,8 @@ function buildBrowserRow(
   }
   const buffett = evaluateBuffettSimple(f ?? {})
   const buffettModified = evaluateModifiedBuffettSimple(f ?? {})
+  const jhunjhunwala = evaluateJhunjhunwalaSimple(f ?? {})
+  const jhunjhunwalaModified = evaluateJhunjhunwalaModifiedSimple(f ?? {})
   return {
     symbol: s.symbol,
     name: s.name,
@@ -48,11 +51,19 @@ function buildBrowserRow(
     lastPrice: currentPrice ?? s.lastPrice,
     peRatio: f?.peRatio,
     roe: f?.roe,
+    roce: f?.roce,
+    debtToEquity: f?.debtToEquity,
+    revenueGrowth: f?.revenueGrowth,
+    epsGrowth: f?.epsGrowth,
     score,
     buffettCompliant: buffett.isBuffettCompliant,
     buffettGates: buffett.gatesPassed,
     buffettModifiedCompliant: buffettModified.isBuffettCompliant,
     buffettModifiedGates: buffettModified.gatesPassed,
+    jhunjhunwalaCompliant: jhunjhunwala.isJhunjhunwalaCompliant,
+    jhunjhunwalaGates: jhunjhunwala.gatesPassed,
+    jhunjhunwalaModifiedCompliant: jhunjhunwalaModified.isJhunjhunwalaCompliant,
+    jhunjhunwalaModifiedGates: jhunjhunwalaModified.gatesPassed,
   }
 }
 
@@ -64,13 +75,16 @@ export function StockBrowserPage() {
   const [page, setPage] = useState(1)
 
   const debouncedSearch = useDebounce(search, 300)
+  const debouncedFilters = useDebounce(filters, 150)
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
+      console.log('[StocksPage] Loading...')
       await ensureSeeded()
       const stockRows = await db.stock.toArray()
       const fundRows = await db.fundamental.toArray()
+      console.log(`[StocksPage] stockRows=${stockRows.length}, fundRows=${fundRows.length}`)
       const fundMap = new Map(fundRows.map((f) => [f.symbol, f]))
 
       const browserRows: StockBrowserRow[] = stockRows.map((s) => {
@@ -84,7 +98,8 @@ export function StockBrowserPage() {
       const staleCutoff = Date.now() - 24 * 60 * 60 * 1000
       const missing = stockRows.filter((s) => {
         const f = fundMap.get(s.symbol)
-        return !f || !f.fetchedAt || new Date(f.fetchedAt).getTime() < staleCutoff
+        if (!f || !f.fetchedAt || new Date(f.fetchedAt).getTime() < staleCutoff) return true
+        return f.revenueGrowth === undefined || f.epsGrowth === undefined
       })
 
       if (missing.length === 0) return
@@ -142,50 +157,80 @@ export function StockBrowserPage() {
       )
     }
 
-    if (filters.marketCap) {
+    if (debouncedFilters.marketCap) {
       result = result.filter((r) => {
         if (r.marketCap === undefined) return true
-        if (filters.marketCap === 'large') return r.marketCap >= 20000
-        if (filters.marketCap === 'mid')
+        if (debouncedFilters.marketCap === 'large') return r.marketCap >= 20000
+        if (debouncedFilters.marketCap === 'mid')
           return r.marketCap >= 5000 && r.marketCap < 20000
-        if (filters.marketCap === 'small') return r.marketCap < 5000
+        if (debouncedFilters.marketCap === 'small') return r.marketCap < 5000
         return true
       })
     }
 
-    if (filters.sector) {
-      result = result.filter((r) => r.sector === filters.sector)
+    if (debouncedFilters.sector) {
+      result = result.filter((r) => r.sector === debouncedFilters.sector)
     }
+
+    if (debouncedFilters.showAll) return result
 
     result = result.filter((r) => {
       if (r.peRatio === undefined) return true
-      return r.peRatio >= filters.peMin && r.peRatio <= filters.peMax
+      return r.peRatio >= debouncedFilters.peMin && r.peRatio <= debouncedFilters.peMax
     })
 
     result = result.filter((r) => {
       if (r.roe === undefined) return true
-      return r.roe >= filters.roeMin && r.roe <= filters.roeMax
+      return r.roe >= debouncedFilters.roeMin && r.roe <= debouncedFilters.roeMax
+    })
+
+    result = result.filter((r) => {
+      if (r.roce === undefined) return true
+      return r.roce >= debouncedFilters.roceMin && r.roce <= debouncedFilters.roceMax
+    })
+
+    result = result.filter((r) => {
+      if (r.debtToEquity === undefined) return true
+      return r.debtToEquity >= debouncedFilters.deMin && r.debtToEquity <= debouncedFilters.deMax
+    })
+
+    result = result.filter((r) => {
+      if (r.revenueGrowth === undefined) return true
+      return r.revenueGrowth >= debouncedFilters.salesGrowthMin && r.revenueGrowth <= debouncedFilters.salesGrowthMax
+    })
+
+    result = result.filter((r) => {
+      if (r.epsGrowth === undefined) return true
+      return r.epsGrowth >= debouncedFilters.profitGrowthMin && r.epsGrowth <= debouncedFilters.profitGrowthMax
     })
 
     result = result.filter((r) => {
       if (r.score === undefined) return true
-      return r.score >= filters.scoreMin && r.score <= filters.scoreMax
+      return r.score >= debouncedFilters.scoreMin && r.score <= debouncedFilters.scoreMax
     })
 
-    if (filters.showBuffettOnly) {
+    if (debouncedFilters.showBuffettOnly) {
       result = result.filter((r) => r.buffettCompliant === true)
     }
 
-    if (filters.showModifiedBuffettOnly) {
+    if (debouncedFilters.showModifiedBuffettOnly) {
       result = result.filter((r) => r.buffettModifiedCompliant === true)
     }
 
+    if (debouncedFilters.showJhunjhunwalaOnly) {
+      result = result.filter((r) => r.jhunjhunwalaCompliant === true)
+    }
+
+    if (debouncedFilters.showJhunjhunwalaModifiedOnly) {
+      result = result.filter((r) => r.jhunjhunwalaModifiedCompliant === true)
+    }
+
     return result
-  }, [rows, debouncedSearch, filters])
+  }, [rows, debouncedSearch, debouncedFilters])
 
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, filters])
+  }, [debouncedSearch, debouncedFilters])
 
   if (loading) {
     return (
