@@ -16,14 +16,36 @@ export interface FundamentalData {
   netProfitMargin: number
   eps: number
   dividendYield: number
+  payoutRatio: number
   bookValue: number
   promoterHolding: number
   freeCashFlow: number
   currentPrice?: number
-  revenueGrowth?: number
-  epsGrowth?: number
+  revenueCagr3Y?: number
+  netIncomeCagr3Y?: number
   pledgedShares?: number
   governanceQuality?: number
+  revenue?: number
+  netProfit?: number
+  interestCoverageRatio?: number
+  currentRatio?: number
+  netCurrentAssets?: number
+  longTermDebt?: number
+  dividendYears?: number
+  dividendConsistent?: boolean
+  eps3yAvg?: number
+  pe3yAvg?: number
+  peTimesPb?: number
+  earningsStable?: boolean
+  earningsStable5Y?: boolean
+  netIncomeCagr5Y?: number
+  netIncomeCagr10Y?: number
+  fiftyTwoWeekHigh?: number
+  fiftyTwoWeekLow?: number
+  grahamNumber?: number
+  priceDecline52W?: number
+  priceToIntrinsicValue?: number
+  bargainZone?: 'deep' | 'good' | 'mild' | 'none'
 }
 
 export function getSlug(symbol: string): string {
@@ -48,6 +70,14 @@ function tryParse(text: string, label: string): number | null {
   )
   const match = text.match(regex)
   return match ? parseNumber(match[1].trim()) : null
+}
+
+function tryParseLabels(text: string, labels: string[]): number | null {
+  for (const label of labels) {
+    const result = tryParse(text, label)
+    if (result !== null) return result
+  }
+  return null
 }
 
 function extractFromMeta(html: string): Partial<FundamentalData> {
@@ -84,17 +114,23 @@ function parseFundamentals(html: string) {
       pbRatio: meta.pbRatio ?? 0,
       roe: tryParse(text, 'ROE') ?? 0,
       roce: tryParse(text, 'ROCE') ?? 0,
-      debtToEquity: 0,
-      operatingMargin: 0,
-      netProfitMargin: 0,
-      eps: 0,
+      debtToEquity: tryParse(text, 'Debt to Equity') ?? 0,
+      operatingMargin: tryParse(text, 'Operating Margin') ?? 0,
+      netProfitMargin: tryParse(text, 'Net Profit Margin') ?? 0,
+      eps: tryParse(text, 'EPS') ?? 0,
       dividendYield: tryParse(text, 'Dividend Yield') ?? 0,
       bookValue: tryParse(text, 'Book Value') ?? 0,
       promoterHolding: meta.promoterHolding ?? 0,
-      freeCashFlow: 0,
+      freeCashFlow: tryParse(text, 'Free Cash Flow') ?? 0,
       currentPrice: tryParse(text, 'Current Price') ?? undefined,
-      revenueGrowth: meta.revenueGrowth,
-      epsGrowth: undefined,
+      currentRatio: tryParse(text, 'Current Ratio'),
+      revenueCagr3Y: meta.revenueGrowth,
+      revenue: tryParse(text, 'Revenue'),
+      netProfit: tryParse(text, 'Net Profit'),
+      interestCoverageRatio: tryParse(text, 'Interest Coverage'),
+      fiftyTwoWeekHigh: tryParseLabels(text, ['52 Week High', '52W High']) ?? undefined,
+      fiftyTwoWeekLow: tryParseLabels(text, ['52 Week Low', '52W Low']) ?? undefined,
+      netIncomeCagr3Y: undefined,
       pledgedShares: undefined,
       governanceQuality: undefined,
     } as FundamentalData,
@@ -118,10 +154,24 @@ function toFundamentalRow(symbol: string, data: FundamentalData, fetchedAt: stri
     bookValue: data.bookValue,
     promoterHolding: data.promoterHolding,
     freeCashFlow: data.freeCashFlow,
-    revenueGrowth: data.revenueGrowth,
-    epsGrowth: data.epsGrowth,
+    revenueCagr3Y: data.revenueCagr3Y,
+    revenue: data.revenue,
+    netProfit: data.netProfit,
+    interestCoverageRatio: data.interestCoverageRatio,
+    netIncomeCagr3Y: data.netIncomeCagr3Y,
     pledgedShares: data.pledgedShares,
     governanceQuality: data.governanceQuality,
+    currentRatio: data.currentRatio,
+    netCurrentAssets: data.netCurrentAssets,
+    longTermDebt: data.longTermDebt,
+    dividendYears: data.dividendYears,
+    dividendConsistent: data.dividendConsistent,
+    eps3yAvg: data.eps3yAvg,
+    pe3yAvg: data.pe3yAvg,
+    peTimesPb: data.peTimesPb,
+    earningsStable: data.earningsStable,
+    netIncomeCagr5Y: data.netIncomeCagr5Y,
+    netIncomeCagr10Y: data.netIncomeCagr10Y,
     fetchedAt,
   }
 }
@@ -141,10 +191,24 @@ function fromFundamentalRow(row: FundamentalRow): FundamentalData {
     bookValue: row.bookValue ?? 0,
     promoterHolding: row.promoterHolding ?? 0,
     freeCashFlow: row.freeCashFlow ?? 0,
-    revenueGrowth: row.revenueGrowth,
-    epsGrowth: row.epsGrowth,
+    revenueCagr3Y: row.revenueCagr3Y,
+    revenue: row.revenue,
+    netProfit: row.netProfit,
+    interestCoverageRatio: row.interestCoverageRatio,
+    netIncomeCagr3Y: row.netIncomeCagr3Y,
     pledgedShares: row.pledgedShares,
     governanceQuality: row.governanceQuality,
+    currentRatio: row.currentRatio,
+    netCurrentAssets: row.netCurrentAssets,
+    longTermDebt: row.longTermDebt,
+    dividendYears: row.dividendYears,
+    dividendConsistent: row.dividendConsistent,
+    eps3yAvg: row.eps3yAvg,
+    pe3yAvg: row.pe3yAvg,
+    peTimesPb: row.peTimesPb,
+    earningsStable: row.earningsStable,
+    netIncomeCagr5Y: row.netIncomeCagr5Y,
+    netIncomeCagr10Y: row.netIncomeCagr10Y,
   }
 }
 

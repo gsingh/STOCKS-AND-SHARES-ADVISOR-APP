@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpDown, ArrowUp, ArrowDown, Plus, Briefcase } from 'lucide-react'
 import { useStockStore } from '../../../stores/stock-store'
-import { formatCurrency, formatNumber } from '../../../lib/format'
+import { formatCurrency, formatNumber, formatPercent } from '../../../lib/format'
 import { getGlossaryInfo } from '../../../features/scorecard/parameters'
 import { TermInfo } from '../../shared'
 import { AddHoldingDialog } from '../portfolio/add-holding-dialog'
@@ -14,11 +14,13 @@ export interface StockBrowserRow {
   marketCap?: number
   lastPrice?: number
   peRatio?: number
+  dividendYield?: number
+  payoutRatio?: number
   roe?: number
   roce?: number
   debtToEquity?: number
-  revenueGrowth?: number
-  epsGrowth?: number
+  revenueCagr3Y?: number
+  netIncomeCagr3Y?: number
   score?: number
   buffettCompliant?: boolean
   buffettGates?: number
@@ -28,6 +30,8 @@ export interface StockBrowserRow {
   jhunjhunwalaGates?: number
   jhunjhunwalaModifiedCompliant?: boolean
   jhunjhunwalaModifiedGates?: number
+  enterprisingCompliant?: boolean
+  enterprisingGates?: number
 }
 
 const PAGE_SIZE = 50
@@ -40,6 +44,7 @@ interface StockTableProps {
   page: number
   onPageChange: (page: number) => void
   total: number
+  skipSort?: boolean
 }
 
 function getScoreBadge(score?: number) {
@@ -113,6 +118,18 @@ function getModifiedJhunjhunwalaBadge(compliant?: boolean) {
   )
 }
 
+function getEnterprisingBadge(compliant?: boolean) {
+  if (!compliant) return null
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800 dark:bg-orange-900/40 dark:text-orange-400"
+      title="Passes Benjamin Graham's Enterprising Investor criteria (Ch. 15)"
+    >
+      EN
+    </span>
+  )
+}
+
 const SORTABLE_COLUMNS: { key: SortKey; label: string; align?: string }[] = [
   { key: 'symbol', label: 'Ticker' },
   { key: 'name', label: 'Name' },
@@ -120,17 +137,17 @@ const SORTABLE_COLUMNS: { key: SortKey; label: string; align?: string }[] = [
   { key: 'lastPrice', label: 'Price', align: 'text-right' },
   { key: 'marketCap', label: 'Mkt Cap', align: 'text-right' },
   { key: 'peRatio', label: 'P/E', align: 'text-right' },
+  { key: 'dividendYield', label: 'Div Yield', align: 'text-right' },
+  { key: 'payoutRatio', label: 'Payout Ratio', align: 'text-right' },
   { key: 'roe', label: 'ROE', align: 'text-right' },
   { key: 'roce', label: 'ROCE', align: 'text-right' },
   { key: 'debtToEquity', label: 'D/E', align: 'text-right' },
-  { key: 'revenueGrowth', label: 'Rev Gr 3Y', align: 'text-right' },
-  { key: 'epsGrowth', label: 'Prof Gr 3Y', align: 'text-right' },
+  { key: 'revenueCagr3Y', label: 'Rev CAGR 3Y', align: 'text-right' },
+  { key: 'netIncomeCagr3Y', label: 'Profit CAGR 3Y', align: 'text-right' },
   { key: 'score', label: 'Score', align: 'text-right' },
-  { key: 'buffettGates', label: 'Buffett', align: 'text-right' },
-  { key: 'buffettModifiedGates', label: 'WB-Mod', align: 'text-right' },
 ]
 
-export function StockTable({ rows, page, onPageChange, total }: StockTableProps) {
+export function StockTable({ rows, page, onPageChange, total, skipSort }: StockTableProps) {
   const navigate = useNavigate()
   const addToCompare = useStockStore((s) => s.addToCompare)
   const isInCompare = useStockStore((s) => s.isInCompare)
@@ -139,17 +156,16 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
   const [addSymbol, setAddSymbol] = useState<string | null>(null)
 
   const toggleSort = useCallback((key: SortKey) => {
-    setSortKey((prev) => {
-      if (prev === key) {
-        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-        return prev
-      }
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
       setSortDir('asc')
-      return key
-    })
-  }, [])
+    }
+  }, [sortKey])
 
   const sorted = useMemo(() => {
+    if (skipSort) return rows
     return [...rows].sort((a, b) => {
       const aVal = a[sortKey]
       const bVal = b[sortKey]
@@ -162,7 +178,7 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
         ? (aVal as number) - (bVal as number)
         : (bVal as number) - (aVal as number)
     })
-  }, [rows, sortKey, sortDir])
+  }, [rows, sortKey, sortDir, skipSort])
 
   const paginated = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE
@@ -283,6 +299,12 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
                   {row.peRatio !== undefined ? formatNumber(row.peRatio) : '—'}
                 </td>
                 <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
+                  {row.dividendYield !== undefined ? `${formatPercent(row.dividendYield)}` : '—'}
+                </td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
+                  {row.payoutRatio !== undefined ? `${formatPercent(row.payoutRatio)}` : '—'}
+                </td>
+                <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
                   {row.roe !== undefined ? `${formatNumber(row.roe)}%` : '—'}
                 </td>
                 <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
@@ -292,16 +314,15 @@ export function StockTable({ rows, page, onPageChange, total }: StockTableProps)
                   {row.debtToEquity !== undefined ? formatNumber(row.debtToEquity) : '—'}
                 </td>
                 <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
-                  {row.revenueGrowth !== undefined ? `${formatNumber(row.revenueGrowth)}%` : '—'}
+                  {row.revenueCagr3Y !== undefined ? `${formatNumber(row.revenueCagr3Y)}%` : '—'}
                 </td>
                 <td className="px-4 py-3 text-right text-sm tabular-nums text-[var(--muted-foreground)]">
-                  {row.epsGrowth !== undefined ? `${formatNumber(row.epsGrowth)}%` : '—'}
+                  {row.netIncomeCagr3Y !== undefined ? `${formatNumber(row.netIncomeCagr3Y)}%` : '—'}
                 </td>
                 <td className="px-4 py-3 text-right">{getScoreBadge(row.score)}</td>
-                <td className="px-4 py-3 text-right">{getBuffettBadge(row.buffettCompliant)}</td>
-                <td className="px-4 py-3 text-right">{getModifiedBuffettBadge(row.buffettModifiedCompliant)}</td>
                 <td className="px-4 py-3 text-right">{getJhunjhunwalaBadge(row.jhunjhunwalaCompliant)}</td>
                 <td className="px-4 py-3 text-right">{getModifiedJhunjhunwalaBadge(row.jhunjhunwalaModifiedCompliant)}</td>
+                <td className="px-4 py-3 text-right">{getEnterprisingBadge(row.enterprisingCompliant)}</td>
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={(e) => {

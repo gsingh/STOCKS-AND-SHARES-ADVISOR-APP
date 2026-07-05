@@ -6,7 +6,7 @@ import { db, withErrorHandling } from './db'
 import { toYahooSymbol } from './yahoo-symbol'
 
 const BATCH_CHUNK_SIZE = 100
-const MODULES = 'summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,earningsHistory'
+const MODULES = 'summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,earningsHistory,balanceSheetHistory,dividendHistory'
 
 async function fetchChunkViaBatch(
   symbols: string[],
@@ -76,13 +76,32 @@ async function fetchChunkViaBatch(
       netProfitMargin: data.netProfitMargin,
       eps: data.eps,
       dividendYield: data.dividendYield,
+      payoutRatio: data.payoutRatio,
       bookValue: data.bookValue,
       promoterHolding: data.promoterHolding,
       freeCashFlow: data.freeCashFlow,
-      revenueGrowth: data.revenueGrowth,
-      epsGrowth: data.epsGrowth,
+      revenueCagr3Y: data.revenueCagr3Y,
+      netIncomeCagr3Y: data.netIncomeCagr3Y,
       pledgedShares: data.pledgedShares,
       governanceQuality: data.governanceQuality,
+      currentRatio: data.currentRatio,
+      netCurrentAssets: data.netCurrentAssets,
+      longTermDebt: data.longTermDebt,
+      dividendYears: data.dividendYears,
+      dividendConsistent: data.dividendConsistent,
+      eps3yAvg: data.eps3yAvg,
+      pe3yAvg: data.pe3yAvg,
+      peTimesPb: data.peTimesPb,
+      earningsStable: data.earningsStable,
+      earningsStable5Y: data.earningsStable5Y,
+      netIncomeCagr5Y: data.netIncomeCagr5Y,
+      netIncomeCagr10Y: data.netIncomeCagr10Y,
+      fiftyTwoWeekHigh: data.fiftyTwoWeekHigh,
+      fiftyTwoWeekLow: data.fiftyTwoWeekLow,
+      grahamNumber: data.grahamNumber,
+      priceDecline52W: data.priceDecline52W,
+      priceToIntrinsicValue: data.priceToIntrinsicValue,
+      bargainZone: data.bargainZone,
       fetchedAt,
     }))
 

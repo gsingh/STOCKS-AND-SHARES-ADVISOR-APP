@@ -1,5 +1,6 @@
-import { type ReactNode, useState, useEffect, useCallback } from 'react'
+import { type ReactNode, useState, useEffect, useCallback, useLayoutEffect } from 'react'
 import { Link } from '@tanstack/react-router'
+import { useDashboardStore } from '../../stores'
 import {
   LayoutDashboard,
   TrendingUp,
@@ -17,6 +18,11 @@ import {
   Moon,
   Landmark,
   Star,
+  Wallet,
+  GraduationCap,
+  Zap,
+  ShoppingCart,
+  Search,
 } from 'lucide-react'
 import { useUIStore } from '../../stores'
 import { ToastContainer } from './toast'
@@ -32,12 +38,17 @@ const navItems: NavItem[] = [
   { label: 'Stocks', icon: <TrendingUp size={20} />, href: '/stocks' },
   { label: 'Buffett', icon: <Landmark size={20} />, href: '/buffett' },
   { label: 'Jhunjhunwala', icon: <Star size={20} />, href: '/jhunjhunwala' },
+  { label: 'Graham', icon: <GraduationCap size={20} />, href: '/graham' },
+  { label: 'Enterprising', icon: <Zap size={20} />, href: '/enterprising' },
+  { label: 'Bargains', icon: <Search size={20} />, href: '/bargains' },
+  { label: 'Watchlist', icon: <ShoppingCart size={20} />, href: '/watchlist' },
+  { label: 'Bonds', icon: <Wallet size={20} />, href: '/bonds' },
   { label: 'Compare', icon: <GitCompare size={20} />, href: '/compare' },
   { label: 'Portfolio', icon: <PieChart size={20} />, href: '/portfolio' },
   { label: 'Goals', icon: <Target size={20} />, href: '/goals' },
   { label: 'Reviews', icon: <ClipboardCheck size={20} />, href: '/reviews' },
   { label: 'Journal', icon: <BookOpen size={20} />, href: '/journal' },
-  { label: 'XIRR', icon: <Calculator size={20} />, href: '/xirr' },
+  { label: 'Calculators', icon: <Calculator size={20} />, href: '/calculators' },
   { label: 'Glossary', icon: <BookText size={20} />, href: '/glossary' },
   { label: 'Settings', icon: <Settings size={20} />, href: '/settings' },
 ]
@@ -49,18 +60,18 @@ interface LayoutProps {
 
 export function Layout({ children, title = 'Dashboard' }: LayoutProps) {
   const { theme, toggleTheme } = useUIStore()
-  const [sidebarExpanded, setSidebarExpanded] = useState(true)
+  const initWatchlistFromDb = useDashboardStore((s) => s.initWatchlistFromDb)
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => window.innerWidth >= 1024)
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
 
   useEffect(() => {
+    initWatchlistFromDb()
+  }, [initWatchlistFromDb])
+
+  useLayoutEffect(() => {
     const onResize = () => {
-      if (window.innerWidth < 1024) {
-        setSidebarExpanded(false)
-      } else {
-        setSidebarExpanded(true)
-      }
+      setSidebarExpanded(window.innerWidth >= 1024)
     }
-    onResize()
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
@@ -91,7 +102,7 @@ export function Layout({ children, title = 'Dashboard' }: LayoutProps) {
       {/* Desktop sidebar */}
       <aside
         aria-label="Main navigation"
-        className={`hidden transition-all duration-300 md:flex md:flex-col ${
+        className={`hidden transition-all duration-300 lg:flex lg:flex-col ${
           sidebarExpanded ? 'w-[260px]' : 'w-[64px]'
         } fixed left-0 top-0 z-30 h-full bg-[var(--sidebar-bg)]`}
       >
@@ -153,7 +164,7 @@ export function Layout({ children, title = 'Dashboard' }: LayoutProps) {
       {/* Main area */}
       <div
         className="flex flex-1 flex-col transition-all duration-300"
-        style={{ marginLeft: sidebarExpanded ? '260px' : '64px' }}
+        style={{ marginLeft: sidebarExpanded ? '260px' : '0' }}
       >
         {/* Topbar */}
         <header className="flex h-14 items-center gap-3 border-b border-[var(--border)] bg-[var(--background)] px-4">
@@ -169,7 +180,7 @@ export function Layout({ children, title = 'Dashboard' }: LayoutProps) {
           {/* Collapse toggle: visible on tablet/desktop */}
           <button
             aria-label="Toggle sidebar"
-            className="hidden md:inline-flex text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            className="hidden lg:inline-flex text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
             onClick={() => setSidebarExpanded((p) => !p)}
           >
             <Menu size={20} />

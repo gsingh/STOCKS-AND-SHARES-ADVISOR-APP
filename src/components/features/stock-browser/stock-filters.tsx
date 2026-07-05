@@ -11,16 +11,19 @@ export interface StockFiltersState {
   roceMax: number
   deMin: number
   deMax: number
-  salesGrowthMin: number
-  salesGrowthMax: number
-  profitGrowthMin: number
-  profitGrowthMax: number
+  dividendYieldMin: number
+  dividendYieldMax: number
+  revenueCagrMin: number
+  revenueCagrMax: number
+  profitCagrMin: number
+  profitCagrMax: number
   scoreMin: number
   scoreMax: number
   showBuffettOnly: boolean
   showModifiedBuffettOnly: boolean
   showJhunjhunwalaOnly: boolean
   showJhunjhunwalaModifiedOnly: boolean
+  showEnterprisingOnly: boolean
   showAll: boolean
 }
 
@@ -35,17 +38,51 @@ export const DEFAULT_FILTERS: StockFiltersState = {
   roceMax: 60,
   deMin: 0,
   deMax: 5,
-  salesGrowthMin: -50,
-  salesGrowthMax: 200,
-  profitGrowthMin: -50,
-  profitGrowthMax: 200,
+  dividendYieldMin: 0,
+  dividendYieldMax: 20,
+  revenueCagrMin: -50,
+  revenueCagrMax: 200,
+  profitCagrMin: -50,
+  profitCagrMax: 200,
   scoreMin: 0,
   scoreMax: 100,
   showBuffettOnly: false,
   showModifiedBuffettOnly: false,
   showJhunjhunwalaOnly: false,
   showJhunjhunwalaModifiedOnly: false,
+  showEnterprisingOnly: false,
   showAll: true,
+}
+
+const SCREENER_PRESETS = [
+  {
+    id: 'value',
+    label: 'Value Stocks',
+    description: 'P/E < 15, D/E < 1, Score ≥ 60',
+    filters: { peMax: 15, deMax: 1, scoreMin: 60 },
+  },
+  {
+    id: 'growth',
+    label: 'Growth Stocks',
+    description: 'Rev CAGR ≥ 15%, Profit CAGR ≥ 15%, Score ≥ 50',
+    filters: { revenueCagrMin: 15, profitCagrMin: 15, scoreMin: 50 },
+  },
+  {
+    id: 'dividend',
+    label: 'Dividend Aristocrats',
+    description: 'Div Yield ≥ 2%, Profit CAGR ≥ 5%, Score ≥ 50',
+    filters: { dividendYieldMin: 2, profitCagrMin: 5, scoreMin: 50 },
+  },
+  {
+    id: 'momentum',
+    label: 'Momentum Plays',
+    description: 'Score ≥ 60, P/E < 30, Rev CAGR ≥ 10%',
+    filters: { scoreMin: 60, peMax: 30, revenueCagrMin: 10 },
+  },
+]
+
+function applyPreset(base: StockFiltersState, overrides: Partial<StockFiltersState>): StockFiltersState {
+  return { ...base, showAll: false, ...overrides }
 }
 
 interface StockFiltersProps {
@@ -82,6 +119,30 @@ export function StockFilters({ filters, sectors, onChange, onReset }: StockFilte
             Reset All Filters
           </button>
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-[var(--border)] pb-3">
+        {SCREENER_PRESETS.map((p) => {
+          const active = SCREENER_PRESETS.some(
+            (pr) => pr.id === p.id && Object.entries(pr.filters).every(
+              ([k, v]) => (filters as any)[k] === v,
+            ),
+          )
+          return (
+            <button
+              key={p.id}
+              onClick={() => onChange(applyPreset(filters, p.filters))}
+              className={`group relative rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
+                  : 'border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:bg-[var(--muted)]'
+              }`}
+              title={p.description}
+            >
+              {p.label}
+            </button>
+          )
+        })}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -237,15 +298,45 @@ export function StockFilters({ filters, sectors, onChange, onReset }: StockFilte
 
         <div>
           <label className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">
-            Sales Growth 3Y: {filters.salesGrowthMin}%–{filters.salesGrowthMax}%
+            Div Yield: {filters.dividendYieldMin}%–{filters.dividendYieldMax}%
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={20}
+              step={0.5}
+              value={filters.dividendYieldMin}
+              onChange={(e) => set('dividendYieldMin', Number(e.target.value))}
+              disabled={filters.showAll}
+              className={`w-full ${filters.showAll ? 'opacity-40' : ''}`}
+              aria-label="Minimum dividend yield"
+            />
+            <input
+              type="range"
+              min={0}
+              max={20}
+              step={0.5}
+              value={filters.dividendYieldMax}
+              onChange={(e) => set('dividendYieldMax', Number(e.target.value))}
+              disabled={filters.showAll}
+              className={`w-full ${filters.showAll ? 'opacity-40' : ''}`}
+              aria-label="Maximum dividend yield"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">
+            Revenue CAGR 3Y: {filters.revenueCagrMin}%–{filters.revenueCagrMax}%
           </label>
           <div className="flex items-center gap-2">
             <input
               type="range"
               min={-50}
               max={200}
-              value={filters.salesGrowthMin}
-              onChange={(e) => set('salesGrowthMin', Number(e.target.value))}
+              value={filters.revenueCagrMin}
+              onChange={(e) => set('revenueCagrMin', Number(e.target.value))}
               disabled={filters.showAll}
               className={`w-full ${filters.showAll ? 'opacity-40' : ''}`}
               aria-label="Minimum sales growth"
@@ -254,8 +345,8 @@ export function StockFilters({ filters, sectors, onChange, onReset }: StockFilte
               type="range"
               min={-50}
               max={200}
-              value={filters.salesGrowthMax}
-              onChange={(e) => set('salesGrowthMax', Number(e.target.value))}
+              value={filters.revenueCagrMax}
+              onChange={(e) => set('revenueCagrMax', Number(e.target.value))}
               disabled={filters.showAll}
               className={`w-full ${filters.showAll ? 'opacity-40' : ''}`}
               aria-label="Maximum sales growth"
@@ -265,15 +356,15 @@ export function StockFilters({ filters, sectors, onChange, onReset }: StockFilte
 
         <div>
           <label className="mb-1 block text-xs font-medium text-[var(--muted-foreground)]">
-            Profit Growth 3Y: {filters.profitGrowthMin}%–{filters.profitGrowthMax}%
+            Profit CAGR 3Y: {filters.profitCagrMin}%–{filters.profitCagrMax}%
           </label>
           <div className="flex items-center gap-2">
             <input
               type="range"
               min={-50}
               max={200}
-              value={filters.profitGrowthMin}
-              onChange={(e) => set('profitGrowthMin', Number(e.target.value))}
+              value={filters.profitCagrMin}
+              onChange={(e) => set('profitCagrMin', Number(e.target.value))}
               disabled={filters.showAll}
               className={`w-full ${filters.showAll ? 'opacity-40' : ''}`}
               aria-label="Minimum profit growth"
@@ -282,8 +373,8 @@ export function StockFilters({ filters, sectors, onChange, onReset }: StockFilte
               type="range"
               min={-50}
               max={200}
-              value={filters.profitGrowthMax}
-              onChange={(e) => set('profitGrowthMax', Number(e.target.value))}
+              value={filters.profitCagrMax}
+              onChange={(e) => set('profitCagrMax', Number(e.target.value))}
               disabled={filters.showAll}
               className={`w-full ${filters.showAll ? 'opacity-40' : ''}`}
               aria-label="Maximum profit growth"
@@ -375,6 +466,21 @@ export function StockFilters({ filters, sectors, onChange, onReset }: StockFilte
             />
             <span className="text-sm font-medium text-[var(--foreground)]">
               Jhunjhunwala Modified Only
+            </span>
+          </label>
+        </div>
+
+        <div className={`flex items-end ${filters.showAll ? 'opacity-40' : ''}`}>
+          <label className={`flex items-center gap-2 ${filters.showAll ? '' : 'cursor-pointer'}`}>
+            <input
+              type="checkbox"
+              checked={filters.showEnterprisingOnly}
+              onChange={(e) => set('showEnterprisingOnly', e.target.checked)}
+              disabled={filters.showAll}
+              className="h-4 w-4 rounded border-[var(--input)] text-[var(--primary)] focus:ring-[var(--primary)]"
+            />
+            <span className="text-sm font-medium text-[var(--foreground)]">
+              Enterprising Only
             </span>
           </label>
         </div>

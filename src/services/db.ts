@@ -34,13 +34,35 @@ export interface FundamentalRow {
   netProfitMargin?: number
   eps?: number
   dividendYield?: number
+  payoutRatio?: number
   bookValue?: number
   promoterHolding?: number
   freeCashFlow?: number
-  revenueGrowth?: number
-  epsGrowth?: number
+  revenueCagr3Y?: number
+  netIncomeCagr3Y?: number
   pledgedShares?: number
   governanceQuality?: number
+  revenue?: number
+  netProfit?: number
+  interestCoverageRatio?: number
+  currentRatio?: number
+  netCurrentAssets?: number
+  longTermDebt?: number
+  dividendYears?: number
+  dividendConsistent?: boolean
+  eps3yAvg?: number
+  pe3yAvg?: number
+  peTimesPb?: number
+  earningsStable?: boolean
+  earningsStable5Y?: boolean
+  netIncomeCagr5Y?: number
+  netIncomeCagr10Y?: number
+  fiftyTwoWeekHigh?: number
+  fiftyTwoWeekLow?: number
+  grahamNumber?: number
+  priceDecline52W?: number
+  priceToIntrinsicValue?: number
+  bargainZone?: 'deep' | 'good' | 'mild' | 'none'
   fetchedAt?: string
 }
 
@@ -137,6 +159,8 @@ export interface WatchlistRow {
   symbol: string
   addedAt: string
   notes?: string
+  priceAtAdd?: number
+  peAtAdd?: number
 }
 
 export interface UserPreferenceRow {
@@ -154,6 +178,45 @@ export interface ScoreSnapshotRow {
   createdAt: string
 }
 
+export interface BondCacheRow {
+  isin: string
+  metadata: import('../types/bonds').BondMetadata | null
+  priceData: import('../types/bonds').BondPriceData | null
+  fetchedAt: string
+  source: 'fred' | 'nse' | 'rbi' | 'yahoo' | 'user'
+  _parsed?: any
+}
+
+export interface BondPortfolioRow {
+  id?: number
+  isin: string
+  name: string
+  quantity: number
+  avgBuyPrice: number
+  purchaseDate: string
+  maturityDate: string
+  couponRate: number | null
+  creditRating: string | null
+  type: string
+  faceValue?: number
+  notes?: string
+  goalId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BondTransactionRow {
+  id?: number
+  isin: string
+  date: string
+  type: 'buy' | 'sell' | 'maturity'
+  quantity: number
+  price: number
+  brokerage?: number
+  notes?: string
+  createdAt: string
+}
+
 class AppDatabase extends Dexie {
   stock!: EntityTable<StockRow, 'symbol'>
   priceHistory!: EntityTable<PriceHistoryRow, 'id'>
@@ -168,6 +231,9 @@ class AppDatabase extends Dexie {
   watchlist!: EntityTable<WatchlistRow, 'id'>
   userPreference!: EntityTable<UserPreferenceRow, 'key'>
   scoreSnapshot!: EntityTable<ScoreSnapshotRow, 'id'>
+  bondCache!: EntityTable<BondCacheRow, 'isin'>
+  bondPortfolio!: EntityTable<BondPortfolioRow, 'id'>
+  bondTransaction!: EntityTable<BondTransactionRow, 'id'>
 
   constructor() {
     super('stocks-advisor')
@@ -200,6 +266,27 @@ class AppDatabase extends Dexie {
       watchlist: '++id, symbol',
       userPreference: 'key',
       scoreSnapshot: '++id, symbol, createdAt',
+      bondCache: 'isin, source',
+      bondPortfolio: '++id, isin, type',
+      bondTransaction: '++id, isin',
+    })
+    this.version(4).stores({
+      stock: 'symbol, name, sector',
+      priceHistory: '++id, symbol, date',
+      fundamental: 'symbol',
+      corporateAction: '++id, symbol',
+      portfolio: '++id, symbol',
+      goal: 'id',
+      sip: '++id, goalId',
+      tx: '++id, symbol, goalId',
+      review: 'id, createdAt',
+      journalEntry: 'id, symbol, goalId, reviewId, createdAt',
+      watchlist: '++id, symbol',
+      userPreference: 'key',
+      scoreSnapshot: '++id, symbol, createdAt',
+      bondCache: 'isin, source',
+      bondPortfolio: '++id, isin, type',
+      bondTransaction: '++id, isin',
     })
   }
 }
